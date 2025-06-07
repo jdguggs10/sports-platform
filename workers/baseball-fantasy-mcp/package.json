@@ -1,0 +1,24 @@
+{
+  "name": "baseball-fantasy-mcp",
+  "version": "1.0.0",
+  "description": "Baseball Fantasy MCP - v3 Meta-Tool Façade with Auth",
+  "main": "src/index.js",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "tail": "wrangler tail"
+  },
+  "keywords": [
+    "baseball",
+    "fantasy",
+    "espn",
+    "mcp",
+    "cloudflare",
+    "worker"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "wrangler": "^4.19.1"
+  }
+}

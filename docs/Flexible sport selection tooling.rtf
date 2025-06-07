@@ -1,0 +1,423 @@
+{\rtf1\ansi\ansicpg1252\cocoartf2822
+\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\fmodern\fcharset0 Courier;\f1\fmodern\fcharset0 Courier-Bold;\f2\fmodern\fcharset0 Courier-Oblique;
+\f3\fswiss\fcharset0 Helvetica;\f4\fnil\fcharset0 .SFNS-RegularItalic;\f5\fnil\fcharset0 .AppleSystemUIFontMonospaced-RegularItalic;
+\f6\fnil\fcharset0 .SFNS-Regular;\f7\fnil\fcharset0 .SFNS-Bold;\f8\fnil\fcharset0 .AppleSystemUIFontMonospaced-Regular;
+\f9\fnil\fcharset0 HelveticaNeue-Bold;\f10\fnil\fcharset0 HelveticaNeue-BoldItalic;}
+{\colortbl;\red255\green255\blue255;\red135\green5\blue129;\red0\green0\blue0;\red13\green100\blue1;
+\red181\green0\blue19;\red14\green14\blue14;\red111\green90\blue30;\red151\green0\blue126;\red0\green0\blue0;
+}
+{\*\expandedcolortbl;;\cssrgb\c60784\c13725\c57647;\csgray\c0;\cssrgb\c0\c45490\c0;
+\cssrgb\c76863\c10196\c8627;\cssrgb\c6700\c6700\c6700;\cssrgb\c51373\c42353\c15686;\cssrgb\c66667\c5098\c56863;\cssrgb\c0\c0\c0;
+}
+\margl1440\margr1440\vieww11520\viewh8400\viewkind0
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f0\fs28 \cf2 # \uc0\u55356 \u57303 \u65039  Flexible Sport-Scoped Tooling \'97 Implementation Blueprint\cf3 \
+\
+\cf4 > 
+\f1\b **Goal**
+\f0\b0   \cf3 \
+\cf4 > Keep the tool surface small (\uc0\u8804  3 per sport) by 
+\f2\i *forcing the user to pick a sport up-front*
+\f0\i0 , then exposing only that sport\'92s `stats | fantasy | news` meta-tools to the LLM.\cf3 \
+\
+---\
+\
+\cf2 ## 1. User-Facing Mode Switch\cf3 \
+\
+\cf5 ```tsx\
+// React (Web) or SwiftUI (iOS) \'96 pick your flavor\
+<SportSelect\
+    value=\{session.sport\}          // "baseball", "football", \'85\
+    onChange=\{(sport) => setSport(sport)\}\
+    options=\{[\
+      \{ value: "baseball", label: "\uc0\u9918  Baseball" \},\
+      \{ value: "football", label: "\uc0\u55356 \u57288  Football" \},\
+      \{ value: "basketball", label: "\uc0\u55356 \u57280  Basketball" \}\
+    ]\}\
+/>
+\f3\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f4\i\fs28 \cf6 Store the chosen 
+\f5 sport
+\f4  in a session cookie / JWT so every chat request carries the flag.
+\f6\i0 \
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f3\fs24 \cf0 \
+\uc0\u11835 \
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f6\fs28 \cf6 \
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f7\b\fs34 \cf6 2. Tool Naming Convention (One Verb, One Domain)
+\f3\b0\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f7\b\fs26 \cf6 Tool Name
+\f3\b0\fs24 \cf0 	
+\f7\b\fs26 \cf6 Purpose
+\f3\b0\fs24 \cf0 	
+\f7\b\fs26 \cf6 Visible When
+\f3\b0\fs24 \cf0 \
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f8\fs26 \cf6 <sport>.stats
+\f3\fs24 \cf0 	
+\f6\fs26 \cf6 Public/team/player endpoints
+\f3\fs24 \cf0 	
+\f6\fs26 \cf6 sport chosen
+\f3\fs24 \cf0 \
+
+\f8\fs26 \cf6 <sport>.fantasy
+\f3\fs24 \cf0 	
+\f6\fs26 \cf6 Private league data (
+\f8 swid
+\f6 ,
+\f8 s2
+\f6 )
+\f3\fs24 \cf0 	
+\f6\fs26 \cf6 sport chosen 
+\f9\b and
+\f6\b0  user authenticated
+\f3\fs24 \cf0 \
+
+\f8\fs26 \cf6 <sport>.news
+\f3\fs24 \cf0 	
+\f6\fs26 \cf6 Recent articles, injuries, etc.
+\f3\fs24 \cf0 	
+\f6\fs26 \cf6 sport chosen
+\f3\fs24 \cf0 \
+\
+\pard\tx860\tx1420\tx1980\tx2540\tx3100\tx3660\tx4220\tx4780\tx5340\tx5900\tx6460\tx7020\li300\sl324\slmult1\partightenfactor0
+
+\f9\b\fs28 \cf6 Why:
+\f6\b0  the LLM only judges 
+\f4\i three
+\f6\i0  distinct function names; selection accuracy stays high.\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f3\fs24 \cf0 \
+\uc0\u11835 \
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f6\fs28 \cf6 \
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f7\b\fs34 \cf6 3. Meta-Tool Schemas (Reuse Across Sports)
+\f3\b0\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f0\fs28 \cf4 // <sport>.stats\cf3 \
+\{\
+  \cf7 "name"\cf3 : \cf5 "baseball.stats"\cf3 ,\
+  \cf7 "description"\cf3 : \cf5 "Query official MLB Stats API"\cf3 ,\
+  \cf7 "parameters"\cf3 : \{\
+    \cf7 "type"\cf3 : \cf5 "object"\cf3 ,\
+    \cf7 "properties"\cf3 : \{\
+      \cf7 "endpoint"\cf3 : \{\
+        \cf7 "type"\cf3 : \cf5 "string"\cf3 ,\
+        \cf7 "enum"\cf3 : [\cf5 "player"\cf3 , \cf5 "team"\cf3 , \cf5 "game"\cf3 ]\
+      \},\
+      \cf7 "query"\cf3 : \{ \cf7 "type"\cf3 : \cf5 "object"\cf3  \}\
+    \},\
+    \cf7 "required"\cf3 : [\cf5 "endpoint"\cf3 ]\
+  \}\
+\}
+\f3\fs24 \cf0 \
+\
+
+\f0\fs28 \cf4 // <sport>.fantasy\cf3 \
+\{\
+  \cf7 "name"\cf3 : \cf5 "baseball.fantasy"\cf3 ,\
+  \cf7 "description"\cf3 : \cf5 "User's ESPN fantasy data"\cf3 ,\
+  \cf7 "parameters"\cf3 : \{\
+    \cf7 "type"\cf3 : \cf5 "object"\cf3 ,\
+    \cf7 "properties"\cf3 : \{\
+      \cf7 "endpoint"\cf3 : \{\
+        \cf7 "type"\cf3 : \cf5 "string"\cf3 ,\
+        \cf7 "enum"\cf3 : [\
+          \cf5 "team_roster"\cf3 ,\
+          \cf5 "scoreboard"\cf3 ,\
+          \cf5 "transaction_history"\cf3 \
+        ]\
+      \},\
+      \cf7 "query"\cf3 : \{ \cf7 "type"\cf3 : \cf5 "object"\cf3  \}\
+    \},\
+    \cf7 "required"\cf3 : [\cf5 "endpoint"\cf3 ]\
+  \}\
+\}
+\f3\fs24 \cf0 \
+\
+
+\f0\fs28 \cf4 // <sport>.news\cf3 \
+\{\
+  \cf7 "name"\cf3 : \cf5 "baseball.news"\cf3 ,\
+  \cf7 "description"\cf3 : \cf5 "Headline + injury news search"\cf3 ,\
+  \cf7 "parameters"\cf3 : \{\
+    \cf7 "type"\cf3 : \cf5 "object"\cf3 ,\
+    \cf7 "properties"\cf3 : \{\
+      \cf7 "keywords"\cf3 : \{ \cf7 "type"\cf3 : \cf5 "string"\cf3  \},\
+      \cf7 "since"\cf3 :    \{ \cf7 "type"\cf3 : \cf5 "string"\cf3 , \cf7 "format"\cf3 : \cf5 "date"\cf3 , \cf7 "description"\cf3 : \cf5 "YYYY-MM-DD"\cf3  \}\
+    \},\
+    \cf7 "required"\cf3 : [\cf5 "keywords"\cf3 ]\
+  \}\
+\}
+\f3\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f4\i\fs28 \cf6 Same JSON, different prefixes for football, basketball, etc. \uc0\u8594  copy-paste minimal.
+\f6\i0 \
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f3\fs24 \cf0 \
+\uc0\u11835 \
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f6\fs28 \cf6 \
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f7\b\fs34 \cf6 4. Orchestrator Worker (Cloudflare)
+\f3\b0\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f0\fs28 \cf8 import\cf3  \{ callResponsesAPI \} \cf8 from\cf3  \cf5 "./openai.js"\cf3 ;\
+\cf8 import\cf3  \{ getCookiesForUser \} \cf8 from\cf3  \cf5 "./auth.js"\cf3 ;\
+\
+\cf8 const\cf3  SPORT_TOOLS = \{\
+  \cf7 baseball\cf3 : [\cf5 "baseball.stats"\cf3 , \cf5 "baseball.news"\cf3 ],\
+  \cf7 football\cf3 : [\cf5 "football.stats"\cf3 , \cf5 "football.news"\cf3 ],\
+  \cf7 basketball\cf3 : [\cf5 "basketball.stats"\cf3 , \cf5 "basketball.news"\cf3 ]\
+\};\
+\
+\cf8 export\cf3  \cf8 async\cf3  \cf8 function\cf3  handleChat(req) \{\
+  \cf8 const\cf3  \{ sport, uid \} = getSession(req);      \cf4 // from cookie/JWT\cf3 \
+  \cf8 let\cf3  tools = [...SPORT_TOOLS[sport]];         \cf4 // start w/ stats + news\cf3 \
+\
+  \cf4 // inject fantasy tool only if cookies exist\cf3 \
+  \cf8 const\cf3  cookies = \cf8 await\cf3  getCookiesForUser(uid, sport);\
+  \cf8 if\cf3  (cookies) tools.push(\cf5 `\cf9 $\{sport\}\cf5 .fantasy`\cf3 );\
+\
+  \cf8 const\cf3  body = \cf8 await\cf3  req.json();\
+  \cf8 const\cf3  messages = body.messages;\
+\
+  \cf8 const\cf3  llmRes = \cf8 await\cf3  callResponsesAPI(\{\
+    \cf7 model\cf3 : \cf5 "openai/o4o"\cf3 ,\
+    messages,\
+    tools\
+  \});\
+\
+  \cf8 return\cf3  \cf8 new\cf3  Response(JSON.stringify(llmRes), \{ \cf7 headers\cf3 : \{ \cf5 "Content-Type"\cf3 : \cf5 "application/json"\cf3  \}\});\
+\}
+\f3\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f4\i\fs28 \cf6 Secrets ( 
+\f5 swid
+\f4 , 
+\f5 s2
+\f4 ) are attached inside each fantasy MCP request, 
+\f10\b never
+\f4\b0  placed in the tool call payload.
+\f6\i0 \
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f3\fs24 \cf0 \
+\uc0\u11835 \
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f6\fs28 \cf6 \
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f7\b\fs34 \cf6 5. Server-Side Fan-Out
+\f3\b0\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f0\fs28 \cf4 // MCP server pseudo-router\cf3 \
+app.post(\cf5 "/fantasy"\cf3 , async (req, res) => \{\
+  \cf8 const\cf3  \{ endpoint, query \} = req.body;\
+  \cf8 const\cf3  url = buildEspnUrl(endpoint, query);\
+  \cf8 const\cf3  headers = \{ \cf7 cookie\cf3 : \cf5 `swid=\cf9 $\{req.s2.swid\}\cf5 ; espn_s2=\cf9 $\{req.s2.s2\}\cf5 `\cf3  \};\
+  \cf8 const\cf3  data = \cf8 await\cf3  fetch(url, \{ headers \}).then(r => r.json());\
+  res.json(data);\
+\});
+\f3\fs24 \cf0 \
+\
+\
+\uc0\u11835 \
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f6\fs28 \cf6 \
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f7\b\fs34 \cf6 6. Prompt Engineering Snippet (Agent Eyes Only \uc0\u55357 \u56384 )
+\f3\b0\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f0\fs28 \cf7 system:\cf3  \cf5 |\
+  You have three tools: <sport>.stats, <sport>.fantasy, <sport>.news.\
+  \'96 Call <sport>.stats for public metrics.\
+  \'96 Call <sport>.fantasy for user-specific league data.\
+  \'96 Call <sport>.news for headlines or injuries.\
+  Always decide **which single tool** best answers the user\'92s question.
+\f3\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f4\i\fs28 \cf6 This is inserted per request with the chosen sport\'92s tool names hard-coded.
+\f6\i0 \
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f3\fs24 \cf0 \
+\uc0\u11835 \
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f6\fs28 \cf6 \
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f7\b\fs34 \cf6 7. Observability & Guard-Rails
+\f3\b0\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f7\b\fs26 \cf6 Checkpoint
+\f3\b0\fs24 \cf0 	
+\f7\b\fs26 \cf6 Logic
+\f3\b0\fs24 \cf0 \
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f9\b\fs26 \cf6 Auth
+\f3\b0\fs24 \cf0 	
+\f6\fs26 \cf6 If 
+\f8 fantasy
+\f6  tool selected but cookies absent \uc0\u8594  return 
+\f8 401
+\f6  w/ \'93Please log in to ESPN.\'94
+\f3\fs24 \cf0 \
+
+\f9\b\fs26 \cf6 Rate-limit
+\f3\b0\fs24 \cf0 	
+\f6\fs26 \cf6 e.g. 30 fantasy hits / min per user, 100 stats hits / min global.
+\f3\fs24 \cf0 \
+
+\f9\b\fs26 \cf6 Token audit
+\f3\b0\fs24 \cf0 	
+\f6\fs26 \cf6 Log tokens consumed per tool; alerts if schema bloat sneaks in.
+\f3\fs24 \cf0 \
+
+\f9\b\fs26 \cf6 Fallback
+\f3\b0\fs24 \cf0 	
+\f6\fs26 \cf6 If fantasy MCP fails, gracefully retry 
+\f8 stats
+\f6  or answer with partial public data.
+\f3\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+\cf0 \
+\uc0\u11835 \
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f6\fs28 \cf6 \
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f7\b\fs34 \cf6 8. Scaling to More Sports
+\f6\b0\fs28 \
+\pard\tqr\tx100\tx260\li260\fi-260\sl324\slmult1\sb240\partightenfactor0
+\cf6 	\'95	Add new sport flag in UI (
+\f8 "hockey"
+\f6 , 
+\f8 "golf"
+\f6 \'85).\
+	\'95	Copy the 
+\f9\b three meta-tool
+\f6\b0  JSON blocks with new prefixes.\
+	\'95	Register new MCP back-ends (
+\f8 hockey.stats
+\f6 , 
+\f8 hockey.fantasy
+\f6 , etc.).\
+	\'95	No orchestrator change beyond 
+\f8 SPORT_TOOLS
+\f6  map.\
+\
+This keeps 
+\f4\i every single chat turn
+\f6\i0  at 
+\f9\b \uc0\u8804  3 tools
+\f6\b0 , no matter how many sports you support.\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f3\fs24 \cf0 \
+\uc0\u11835 \
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f6\fs28 \cf6 \
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f7\b\fs34 \cf6 9. Testing Harness
+\f3\b0\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f0\fs28 \cf4 # test_router.py\cf3 \
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+\cf8 import\cf3  pytest, json\
+\cf8 from\cf3  orchestrator \cf8 import\cf3  handleChat\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+\cf2 @pytest.mark.parametrize(\cf5 "sport,tool_expected"\cf2 , [\
+  (\cf5 "baseball"\cf2 , \cf5 "baseball.stats"\cf2 ),\
+  (\cf5 "football"\cf2 , \cf5 "football.fantasy"\cf2 ),\
+])\cf3 \
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+\cf8 def\cf3  test_tool_visibility(sport, tool_expected):\
+    req = FakeRequest(messages=[...], sport=sport)\
+    resp  = json.loads(handleChat(req).body)\
+    visible = [t[\cf5 "name"\cf3 ] \cf8 for\cf3  t \cf8 in\cf3  resp[\cf5 "tool_calls"\cf3 ]]\
+    \cf8 assert\cf3  tool_expected \cf8 in\cf3  visible
+\f3\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f6\fs28 \cf6 Run in CI; ensures the correct tool list for each sport mode.\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f3\fs24 \cf0 \
+\uc0\u11835 \
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f6\fs28 \cf6 \
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f7\b\fs34 \cf6 10. Done = \uc0\u9989 
+\f6\b0\fs28 \
+\pard\tqr\tx100\tx260\li260\fi-260\sl324\slmult1\sb240\partightenfactor0
+\cf6 	\'95	
+\f9\b User cognitive load:
+\f6\b0  1 dropdown.\
+	\'95	
+\f9\b LLM tool load:
+\f6\b0  3 consistent meta-tools.\
+	\'95	
+\f9\b Developer maintenance:
+\f6\b0  copy-paste schema + back-end per sport.\
+	\'95	
+\f9\b Scales smoothly
+\f6\b0  as you grow your fantasy AI empire.\
+\
+\pard\tx860\tx1420\tx1980\tx2540\tx3100\tx3660\tx4220\tx4780\tx5340\tx5900\tx6460\tx7020\li300\sl324\slmult1\partightenfactor0
+\cf6 \'93Keep the plumbing boring so the agent stays brilliant.\'94\
+\'a0\'97 Every sane platform architect, ever
+\f3\fs24 \cf0 \
+\
+}

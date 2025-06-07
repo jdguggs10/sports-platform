@@ -1,0 +1,18 @@
+name = "baseball-fantasy-mcp"
+main = "src/index.js"
+compatibility_date = "2025-01-06"
+
+# Durable Objects for user session storage
+[[durable_objects.bindings]]
+name = "USER_SESSION"
+class_name = "UserSession"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["UserSession"]
+
+[env.production]
+vars = { ENVIRONMENT = "production" }
+
+[env.development]
+vars = { ENVIRONMENT = "development" }

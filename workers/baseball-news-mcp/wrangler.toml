@@ -1,0 +1,14 @@
+name = "baseball-news-mcp"
+main = "src/index.js"
+compatibility_date = "2025-01-06"
+
+# KV for news caching
+[[kv_namespaces]]
+binding = "NEWS_CACHE"
+id = "dbd0322c8b844b0fbce1d491e06ba7cb"
+
+[env.production]
+vars = { ENVIRONMENT = "production" }
+
+[env.development]
+vars = { ENVIRONMENT = "development" }

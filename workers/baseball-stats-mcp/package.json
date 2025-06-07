@@ -1,0 +1,23 @@
+{
+  "name": "baseball-stats-mcp",
+  "version": "1.0.0",
+  "description": "Baseball Stats MCP - v3 Meta-Tool Façade",
+  "main": "src/index.js",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "tail": "wrangler tail"
+  },
+  "keywords": [
+    "baseball",
+    "stats",
+    "mcp",
+    "cloudflare",
+    "worker"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "wrangler": "^4.19.1"
+  }
+}
