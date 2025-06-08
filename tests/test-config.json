@@ -1,0 +1,150 @@
+{
+  "description": "Sports Platform v3.2 Test Configuration",
+  "version": "3.2.0",
+  "services": {
+    "sports-proxy": {
+      "port": 8081,
+      "path": "../workers/sports-proxy",
+      "healthEndpoint": "/health",
+      "required": true,
+      "description": "Main orchestrator - OpenAI Responses API integration"
+    },
+    "hockey-stats-mcp": {
+      "port": 8783,
+      "path": "../workers/hockey-stats-mcp",
+      "healthEndpoint": "/health",
+      "required": true,
+      "description": "Hockey statistics and data via NHL API"
+    },
+    "baseball-stats-mcp": {
+      "port": 8782,
+      "path": "../workers/mlbstats-mcp",
+      "healthEndpoint": "/health",
+      "required": true,
+      "description": "Baseball statistics and data via MLB Stats API"
+    }
+  },
+  "timeouts": {
+    "service_startup": 15000,
+    "service_health": 5000,
+    "test_execution": 30000,
+    "graceful_shutdown": 2000
+  },
+  "parallel": {
+    "services": true,
+    "tests": false,
+    "description": "Start services in parallel but run tests sequentially for stability"
+  },
+  "performance_thresholds": {
+    "health_check": 10,
+    "service_binding": 100,
+    "tool_call": 500,
+    "responses_api": 2000,
+    "concurrent_avg": 1000,
+    "description": "Maximum response times in milliseconds"
+  },
+  "test_suites": {
+    "architecture": {
+      "description": "Core architectural patterns and compliance",
+      "tests": [
+        "responses-api-compliance",
+        "meta-tool-facade", 
+        "league-id-requirement"
+      ],
+      "required": true
+    },
+    "service-bindings": {
+      "description": "Zero-latency worker-to-worker communication",
+      "tests": [
+        "service-binding-latency",
+        "binding-vs-http-performance",
+        "service-binding-errors"
+      ],
+      "required": true
+    },
+    "api-integration": {
+      "description": "External API integration and data flow",
+      "tests": [
+        "mlb-api-integration",
+        "entity-resolution",
+        "conversation-context"
+      ],
+      "required": true
+    },
+    "fantasy-providers": {
+      "description": "Multi-provider fantasy support (ESPN/Yahoo)",
+      "tests": [
+        "league-discovery-api",
+        "fantasy-tool-league-id",
+        "multi-provider-support"
+      ],
+      "required": false,
+      "note": "Some fantasy features may require authentication"
+    },
+    "performance": {
+      "description": "Performance benchmarks and resource usage",
+      "tests": [
+        "response-time-benchmarks",
+        "concurrent-requests",
+        "resource-usage"
+      ],
+      "required": true
+    },
+    "reliability": {
+      "description": "Error handling and graceful degradation",
+      "tests": [
+        "error-recovery",
+        "service-health-monitoring", 
+        "graceful-degradation"
+      ],
+      "required": true
+    }
+  },
+  "test_data": {
+    "test_users": [
+      {
+        "id": "test-runner",
+        "sport": "baseball",
+        "provider": "espn"
+      },
+      {
+        "id": "test-context-user", 
+        "sport": "baseball"
+      },
+      {
+        "id": "perf-test",
+        "sport": "hockey"
+      }
+    ],
+    "test_entities": {
+      "mlb_teams": {
+        "yankees": { "id": "147", "name": "New York Yankees" },
+        "red_sox": { "id": "111", "name": "Boston Red Sox" }
+      },
+      "nhl_teams": {
+        "bruins": { "id": "6", "name": "Boston Bruins" },
+        "rangers": { "id": "3", "name": "New York Rangers" }
+      }
+    }
+  },
+  "environment": {
+    "TEST_BASE_URL": "http://localhost:8081",
+    "NODE_ENV": "test",
+    "LOG_LEVEL": "error",
+    "description": "Environment variables for test execution"
+  },
+  "reporting": {
+    "console_output": true,
+    "json_report": false,
+    "junit_xml": false,
+    "coverage_report": false,
+    "performance_metrics": true,
+    "description": "Test reporting configuration"
+  },
+  "ci_integration": {
+    "enabled": false,
+    "pre_commit_hooks": false,
+    "github_actions": false,
+    "description": "CI/CD integration settings"
+  }
+}

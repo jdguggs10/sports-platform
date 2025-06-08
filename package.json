@@ -1,0 +1,66 @@
+{
+  "name": "sports-platform",
+  "version": "3.2.0",
+  "description": "Multi-sport platform with OpenAI Responses API integration and fantasy provider support",
+  "private": true,
+  "scripts": {
+    "test": "cd tests && node test-runner.js",
+    "test:architecture": "cd tests && node architectural-validator.js",
+    "test:ci": "cd tests && node ci-integration.js",
+    "test:quick": "cd tests && node ci-integration.js --quick",
+    "test:performance": "cd tests && node test-runner.js performance",
+    "test:fantasy": "cd tests && node test-runner.js fantasy-providers",
+    "dev": "concurrently \"npm run dev:proxy\" \"npm run dev:hockey\" \"npm run dev:baseball\"",
+    "dev:proxy": "cd workers/sports-proxy && npm run dev",
+    "dev:hockey": "cd workers/hockey-stats-mcp && npm run dev",
+    "dev:baseball": "cd workers/baseball-stats-mcp && npm run dev",
+    "start": "npm run dev",
+    "build": "npm run build:all",
+    "build:all": "npm run build:proxy && npm run build:hockey && npm run build:baseball",
+    "build:proxy": "cd workers/sports-proxy && wrangler deploy --dry-run",
+    "build:hockey": "cd workers/hockey-stats-mcp && wrangler deploy --dry-run",
+    "build:baseball": "cd workers/baseball-stats-mcp && wrangler deploy --dry-run",
+    "deploy": "npm run deploy:all",
+    "deploy:all": "npm run deploy:proxy && npm run deploy:hockey && npm run deploy:baseball",
+    "deploy:proxy": "cd workers/sports-proxy && wrangler deploy",
+    "deploy:hockey": "cd workers/hockey-stats-mcp && wrangler deploy", 
+    "deploy:baseball": "cd workers/baseball-stats-mcp && wrangler deploy",
+    "health": "curl -f http://localhost:8081/health || echo 'Health check failed'",
+    "start:dev": "./start-dev-servers.sh",
+    "stop:dev": "./stop-dev-servers.sh",
+    "lint": "echo 'No linting configured yet'",
+    "format": "echo 'No formatting configured yet'"
+  },
+  "keywords": [
+    "sports",
+    "api",
+    "openai",
+    "cloudflare",
+    "workers",
+    "fantasy",
+    "mlb",
+    "nhl",
+    "responses-api",
+    "service-bindings"
+  ],
+  "author": "Sports Platform Team",
+  "license": "MIT",
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
+  "workspaces": [
+    "workers/*"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-org/sports-platform.git"
+  },
+  "bugs": {
+    "url": "https://github.com/your-org/sports-platform/issues"
+  },
+  "homepage": "https://github.com/your-org/sports-platform#readme"
+}
