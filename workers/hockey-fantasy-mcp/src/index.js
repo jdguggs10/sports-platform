@@ -1,6 +1,6 @@
 /**
- * Baseball Fantasy MCP - v3.1 Meta-Tool Façade with Multi-Provider Support
- * Exposes baseball.fantasy meta-tool with ESP/Yahoo provider choice
+ * Hockey Fantasy MCP - v3.1 Meta-Tool Façade with Multi-Provider Support
+ * Exposes hockey.fantasy meta-tool with ESPN/Yahoo provider choice
  */
 
 export default {
@@ -24,10 +24,10 @@ export default {
       // Health check
       if (url.pathname === '/health') {
         return new Response(JSON.stringify({
-          service: 'baseball-fantasy-mcp',
+          service: 'hockey-fantasy-mcp',
           status: 'healthy',
           timestamp: new Date().toISOString(),
-          endpoints: ['team_roster', 'scoreboard', 'transactions', 'league_settings', 'waivers', 'leagues'],
+          endpoints: ['team_roster', 'scoreboard', 'transactions', 'league_settings', 'leagues'],
           auth_required: true
         }), {
           headers: { "Content-Type": "application/json" }
@@ -36,7 +36,7 @@ export default {
       
       // League discovery API endpoint for v3.2
       if (url.pathname === '/leagues' && request.method === 'GET') {
-        const sport = url.searchParams.get('sport') || 'baseball';
+        const sport = url.searchParams.get('sport') || 'hockey';
         const provider = url.searchParams.get('provider');
         const uid = url.searchParams.get('uid');
         
@@ -56,7 +56,7 @@ export default {
             provider,
             leagues,
             meta: {
-              service: 'baseball-fantasy-mcp',
+              service: 'hockey-fantasy-mcp',
               timestamp: new Date().toISOString(),
               total_leagues: leagues.length
             }
@@ -66,7 +66,7 @@ export default {
         } catch (error) {
           return new Response(JSON.stringify({
             error: error.message,
-            service: 'baseball-fantasy-mcp'
+            service: 'hockey-fantasy-mcp'
           }), {
             status: error.message.includes('authentication') ? 401 : 500,
             headers: { "Content-Type": "application/json" }
@@ -120,40 +120,38 @@ export default {
           });
         }
         
-        // Route to appropriate provider with league_id
+        // Route to appropriate provider
         let result;
         if (provider === 'espn') {
-          // Get user session and cookies for this league
-          const { swid, s2 } = await getUserCookies(uid, env, 'espn', league_id);
+          // Get user session and cookies
+          const { swid, s2 } = await getUserCookies(uid, env, 'espn');
           if (!swid || !s2) {
             return new Response(JSON.stringify({
               error: 'ESPN authentication required. Please log in to ESPN.',
               login_required: true,
-              provider: 'espn',
-              league_id: league_id
+              provider: 'espn'
             }), {
               status: 401,
               headers: { "Content-Type": "application/json" }
             });
           }
           
-          result = await fanOutToESPNFantasy(league_id, endpoint, query, { swid, s2 });
+          result = await fanOutToESPNFantasy(endpoint, query, { swid, s2 });
         } else if (provider === 'yahoo') {
-          // Get Yahoo OAuth tokens for this league
-          const { access_token, refresh_token } = await getUserTokens(uid, env, 'yahoo', league_id);
+          // Get Yahoo OAuth tokens
+          const { access_token, refresh_token } = await getUserTokens(uid, env, 'yahoo');
           if (!access_token) {
             return new Response(JSON.stringify({
               error: 'Yahoo authentication required. Please authorize Yahoo Fantasy.',
               login_required: true,
-              provider: 'yahoo',
-              league_id: league_id
+              provider: 'yahoo'
             }), {
               status: 401,
               headers: { "Content-Type": "application/json" }
             });
           }
           
-          result = await fanOutToYahooFantasy(league_id, endpoint, query, { access_token, refresh_token }, uid, env);
+          result = await fanOutToYahooFantasy(endpoint, query, { access_token, refresh_token }, uid, env);
         } else {
           return new Response(JSON.stringify({
             error: `Unsupported provider: ${provider}`,
@@ -169,14 +167,14 @@ export default {
         });
       }
       
-      return new Response('Baseball Fantasy MCP v3 - Meta-Tool Façade with Auth', {
+      return new Response('Hockey Fantasy MCP v3.1 - Meta-Tool Façade with Multi-Provider Support', {
         headers: { "Content-Type": "text/plain" }
       });
       
     } catch (error) {
       return new Response(JSON.stringify({
         error: error.message,
-        service: 'baseball-fantasy-mcp'
+        service: 'hockey-fantasy-mcp'
       }), {
         status: 500,
         headers: { "Content-Type": "application/json" }
@@ -186,15 +184,15 @@ export default {
 };
 
 /**
- * Get user cookies from Durable Object storage (ESPN) - v3.2 with league support
+ * Get user cookies from Durable Object storage (ESPN)
  */
-async function getUserCookies(uid, env, provider = 'espn', leagueId = null) {
+async function getUserCookies(uid, env, provider = 'espn') {
   const userSessionId = env.USER_SESSION.idFromString(uid);
   const userSession = env.USER_SESSION.get(userSessionId);
   
   const request = new Request('https://localhost/getCookies', {
     method: 'POST',
-    body: JSON.stringify({ sport: 'baseball', provider, leagueId })
+    body: JSON.stringify({ sport: 'hockey', provider })
   });
   
   const response = await userSession.fetch(request);
@@ -207,15 +205,15 @@ async function getUserCookies(uid, env, provider = 'espn', leagueId = null) {
 }
 
 /**
- * Get user OAuth tokens from Durable Object storage (Yahoo) - v3.2 with league support
+ * Get user OAuth tokens from Durable Object storage (Yahoo)
  */
-async function getUserTokens(uid, env, provider = 'yahoo', leagueId = null) {
+async function getUserTokens(uid, env, provider = 'yahoo') {
   const userSessionId = env.USER_SESSION.idFromString(uid);
   const userSession = env.USER_SESSION.get(userSessionId);
   
   const request = new Request('https://localhost/getTokens', {
     method: 'POST',
-    body: JSON.stringify({ sport: 'baseball', provider, leagueId })
+    body: JSON.stringify({ sport: 'hockey', provider })
   });
   
   const response = await userSession.fetch(request);
@@ -228,30 +226,26 @@ async function getUserTokens(uid, env, provider = 'yahoo', leagueId = null) {
 }
 
 /**
- * Fan out meta-tool requests to ESPN Fantasy endpoints - v3.2 with league_id
+ * Fan out meta-tool requests to ESPN Fantasy endpoints
  */
-async function fanOutToESPNFantasy(leagueId, endpoint, query = {}, cookies) {
-  // Map meta-tool endpoints to ESPN API URLs - now using passed leagueId
+async function fanOutToESPNFantasy(endpoint, query = {}, cookies) {
+  // Map meta-tool endpoints to ESPN API URLs (hockey = fhl)
   const endpointMapping = {
     team_roster: {
-      buildUrl: (leagueId, q) => `https://fantasy.espn.com/apis/v3/games/flb/seasons/2025/segments/0/leagues/${leagueId}/teams/${q.teamId}/roster`,
+      buildUrl: (q) => `https://fantasy.espn.com/apis/v3/games/fhl/seasons/2025/segments/0/leagues/${q.leagueId}/teams/${q.teamId}/roster`,
       params: {}
     },
     scoreboard: {
-      buildUrl: (leagueId, q) => `https://fantasy.espn.com/apis/v3/games/flb/seasons/2025/segments/0/leagues/${leagueId}`,
+      buildUrl: (q) => `https://fantasy.espn.com/apis/v3/games/fhl/seasons/2025/segments/0/leagues/${q.leagueId}`,
       params: { view: 'mMatchup' }
     },
     transactions: {
-      buildUrl: (leagueId, q) => `https://fantasy.espn.com/apis/v3/games/flb/seasons/2025/segments/0/leagues/${leagueId}`,
+      buildUrl: (q) => `https://fantasy.espn.com/apis/v3/games/fhl/seasons/2025/segments/0/leagues/${q.leagueId}`,
       params: { view: 'mTransactions2' }
     },
     league_settings: {
-      buildUrl: (leagueId, q) => `https://fantasy.espn.com/apis/v3/games/flb/seasons/2025/segments/0/leagues/${leagueId}`,
+      buildUrl: (q) => `https://fantasy.espn.com/apis/v3/games/fhl/seasons/2025/segments/0/leagues/${q.leagueId}`,
       params: { view: 'mSettings' }
-    },
-    waivers: {
-      buildUrl: (leagueId, q) => `https://fantasy.espn.com/apis/v3/games/flb/seasons/2025/segments/0/leagues/${leagueId}`,
-      params: { view: 'waiverWire' }
     }
   };
   
@@ -261,7 +255,7 @@ async function fanOutToESPNFantasy(leagueId, endpoint, query = {}, cookies) {
   }
   
   // Build ESPN API URL with parameters
-  const baseUrl = mapping.buildUrl(leagueId, query);
+  const baseUrl = mapping.buildUrl(query);
   const url = new URL(baseUrl);
   
   // Add query parameters
@@ -292,7 +286,6 @@ async function fanOutToESPNFantasy(leagueId, endpoint, query = {}, cookies) {
   
   return {
     endpoint: endpoint,
-    league_id: leagueId,
     query: query,
     data: data,
     meta: {
@@ -306,25 +299,25 @@ async function fanOutToESPNFantasy(leagueId, endpoint, query = {}, cookies) {
 }
 
 /**
- * Fan out meta-tool requests to Yahoo Fantasy endpoints - v3.2 with league_id
+ * Fan out meta-tool requests to Yahoo Fantasy endpoints
  */
-async function fanOutToYahooFantasy(leagueId, endpoint, query = {}, tokens, uid, env) {
-  // Map meta-tool endpoints to Yahoo Fantasy API URLs - now using passed leagueId
+async function fanOutToYahooFantasy(endpoint, query = {}, tokens, uid, env) {
+  // Map meta-tool endpoints to Yahoo Fantasy API URLs (hockey)
   const endpointMapping = {
     team_roster: {
-      buildUrl: (leagueId, q) => `https://fantasysports.yahooapis.com/fantasy/v2/league/${leagueId}/teams/${q.teamKey || 'me'}/roster`,
+      buildUrl: (q) => `https://fantasysports.yahooapis.com/fantasy/v2/league/${q.leagueKey}/teams/${q.teamKey}/roster`,
       method: 'GET'
     },
     scoreboard: {
-      buildUrl: (leagueId, q) => `https://fantasysports.yahooapis.com/fantasy/v2/league/${leagueId}/scoreboard`,
+      buildUrl: (q) => `https://fantasysports.yahooapis.com/fantasy/v2/league/${q.leagueKey}/scoreboard`,
       method: 'GET'
     },
     transactions: {
-      buildUrl: (leagueId, q) => `https://fantasysports.yahooapis.com/fantasy/v2/league/${leagueId}/transactions`,
+      buildUrl: (q) => `https://fantasysports.yahooapis.com/fantasy/v2/league/${q.leagueKey}/transactions`,
       method: 'GET'
     },
     league_settings: {
-      buildUrl: (leagueId, q) => `https://fantasysports.yahooapis.com/fantasy/v2/league/${leagueId}/settings`,
+      buildUrl: (q) => `https://fantasysports.yahooapis.com/fantasy/v2/league/${q.leagueKey}/settings`,
       method: 'GET'
     }
   };
@@ -335,7 +328,7 @@ async function fanOutToYahooFantasy(leagueId, endpoint, query = {}, tokens, uid,
   }
   
   // Build Yahoo API URL
-  const baseUrl = mapping.buildUrl(leagueId, query);
+  const baseUrl = mapping.buildUrl(query);
   const url = new URL(baseUrl);
   url.searchParams.set('format', 'json');
   
@@ -348,7 +341,7 @@ async function fanOutToYahooFantasy(leagueId, endpoint, query = {}, tokens, uid,
     method: mapping.method,
     headers: {
       'Authorization': `Bearer ${tokens.access_token}`,
-      'User-Agent': 'Baseball-Fantasy-MCP/1.0',
+      'User-Agent': 'Hockey-Fantasy-MCP/1.0',
       'Accept': 'application/json'
     }
   });
@@ -366,7 +359,7 @@ async function fanOutToYahooFantasy(leagueId, endpoint, query = {}, tokens, uid,
           method: mapping.method,
           headers: {
             'Authorization': `Bearer ${newTokens.access_token}`,
-            'User-Agent': 'Baseball-Fantasy-MCP/1.0',
+            'User-Agent': 'Hockey-Fantasy-MCP/1.0',
             'Accept': 'application/json'
           }
         });
@@ -378,11 +371,10 @@ async function fanOutToYahooFantasy(leagueId, endpoint, query = {}, tokens, uid,
         const data = await retryResponse.json();
         return {
           endpoint: endpoint,
-          league_id: leagueId,
           query: query,
           data: data,
           meta: {
-            service: 'baseball-fantasy-mcp',
+            service: 'hockey-fantasy-mcp',
             provider: 'yahoo',
             timestamp: new Date().toISOString(),
             yahoo_url: url.toString(),
@@ -401,7 +393,6 @@ async function fanOutToYahooFantasy(leagueId, endpoint, query = {}, tokens, uid,
   
   return {
     endpoint: endpoint,
-    league_id: leagueId,
     query: query,
     data: data,
     meta: {
@@ -457,7 +448,7 @@ async function updateUserTokens(uid, env, provider, tokens) {
   const request = new Request('https://localhost/setTokens', {
     method: 'POST',
     body: JSON.stringify({ 
-      sport: 'baseball', 
+      sport: 'hockey', 
       provider,
       access_token: tokens.access_token,
       refresh_token: tokens.refresh_token
@@ -468,7 +459,7 @@ async function updateUserTokens(uid, env, provider, tokens) {
 }
 
 /**
- * Discover user leagues for v3.2 multi-league support
+ * Discover user leagues for v3.2 multi-league support (Hockey)
  */
 async function discoverUserLeagues(uid, env, sport, provider) {
   if (provider === 'espn') {
@@ -478,16 +469,16 @@ async function discoverUserLeagues(uid, env, sport, provider) {
       throw new Error('ESPN authentication required to discover leagues');
     }
     
-    // ESPN user endpoint to get leagues
-    const espnResponse = await fetch('https://fantasy.espn.com/apis/v3/games/flb/seasons/2025', {
+    // ESPN user endpoint to get hockey leagues (fhl instead of flb)
+    const espnResponse = await fetch('https://fantasy.espn.com/apis/v3/games/fhl/seasons/2025', {
       headers: {
         'Cookie': `swid=${swid}; espn_s2=${s2}`,
-        'User-Agent': 'Mozilla/5.0 (compatible; Baseball-Fantasy-MCP/1.0)'
+        'User-Agent': 'Mozilla/5.0 (compatible; Hockey-Fantasy-MCP/1.0)'
       }
     });
     
     if (!espnResponse.ok) {
-      throw new Error('Failed to fetch ESPN leagues');
+      throw new Error('Failed to fetch ESPN hockey leagues');
     }
     
     const data = await espnResponse.json();
@@ -506,17 +497,17 @@ async function discoverUserLeagues(uid, env, sport, provider) {
       throw new Error('Yahoo authentication required to discover leagues');
     }
     
-    // Yahoo user leagues endpoint
-    const yahooResponse = await fetch('https://fantasysports.yahooapis.com/fantasy/v2/users;use_login=1/games;game_keys=mlb/leagues?format=json', {
+    // Yahoo user leagues endpoint for hockey
+    const yahooResponse = await fetch('https://fantasysports.yahooapis.com/fantasy/v2/users;use_login=1/games;game_keys=nhl/leagues?format=json', {
       headers: {
         'Authorization': `Bearer ${access_token}`,
-        'User-Agent': 'Baseball-Fantasy-MCP/1.0',
+        'User-Agent': 'Hockey-Fantasy-MCP/1.0',
         'Accept': 'application/json'
       }
     });
     
     if (!yahooResponse.ok) {
-      throw new Error('Failed to fetch Yahoo leagues');
+      throw new Error('Failed to fetch Yahoo hockey leagues');
     }
     
     const data = await yahooResponse.json();
@@ -549,16 +540,11 @@ export class UserSession {
     
     if (url.pathname === '/getCookies') {
       const body = await request.json();
-      const sport = body.sport || 'baseball';
+      const sport = body.sport || 'hockey';
       const provider = body.provider || 'espn';
-      const leagueId = body.leagueId;
       
-      // v3.2: Per-league storage if leagueId provided, otherwise global
-      const storageKey = leagueId 
-        ? `cookies:${sport}:${provider}:${leagueId}`
-        : `cookies:${sport}:${provider}`;
-      
-      const cookies = await this.state.storage.get(storageKey) || {};
+      // Get stored cookies for this sport and provider
+      const cookies = await this.state.storage.get(`cookies:${sport}:${provider}`) || {};
       
       return new Response(JSON.stringify(cookies), {
         headers: { "Content-Type": "application/json" }
@@ -567,14 +553,10 @@ export class UserSession {
     
     if (url.pathname === '/setCookies') {
       const body = await request.json();
-      const { sport, provider, swid, s2, leagueId } = body;
+      const { sport, provider, swid, s2 } = body;
       
-      // v3.2: Per-league storage if leagueId provided, otherwise global
-      const storageKey = leagueId 
-        ? `cookies:${sport}:${provider}:${leagueId}`
-        : `cookies:${sport}:${provider}`;
-      
-      await this.state.storage.put(storageKey, { swid, s2 });
+      // Store cookies for this sport and provider
+      await this.state.storage.put(`cookies:${sport}:${provider}`, { swid, s2 });
       
       return new Response(JSON.stringify({ success: true }), {
         headers: { "Content-Type": "application/json" }
@@ -583,16 +565,11 @@ export class UserSession {
     
     if (url.pathname === '/getTokens') {
       const body = await request.json();
-      const sport = body.sport || 'baseball';
+      const sport = body.sport || 'hockey';
       const provider = body.provider || 'yahoo';
-      const leagueId = body.leagueId;
       
-      // v3.2: Per-league storage if leagueId provided, otherwise global
-      const storageKey = leagueId 
-        ? `tokens:${sport}:${provider}:${leagueId}`
-        : `tokens:${sport}:${provider}`;
-      
-      const tokens = await this.state.storage.get(storageKey) || {};
+      // Get stored tokens for this sport and provider
+      const tokens = await this.state.storage.get(`tokens:${sport}:${provider}`) || {};
       
       return new Response(JSON.stringify(tokens), {
         headers: { "Content-Type": "application/json" }
@@ -601,14 +578,10 @@ export class UserSession {
     
     if (url.pathname === '/setTokens') {
       const body = await request.json();
-      const { sport, provider, access_token, refresh_token, leagueId } = body;
+      const { sport, provider, access_token, refresh_token } = body;
       
-      // v3.2: Per-league storage if leagueId provided, otherwise global
-      const storageKey = leagueId 
-        ? `tokens:${sport}:${provider}:${leagueId}`
-        : `tokens:${sport}:${provider}`;
-      
-      await this.state.storage.put(storageKey, { 
+      // Store tokens for this sport and provider
+      await this.state.storage.put(`tokens:${sport}:${provider}`, { 
         access_token, 
         refresh_token,
         stored_at: Date.now()

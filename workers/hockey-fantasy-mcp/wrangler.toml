@@ -1,4 +1,4 @@
-name = "baseball-fantasy-mcp"
+name = "hockey-fantasy-mcp"
 main = "src/index.js"
 compatibility_date = "2025-01-06"
 

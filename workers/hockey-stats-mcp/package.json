@@ -1,0 +1,14 @@
+{
+  "name": "hockey-stats-mcp",
+  "version": "3.0.0",
+  "description": "Hockey Stats MCP - v3 Meta-Tool Façade with direct NHL API integration",
+  "main": "src/index.js",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "tail": "wrangler tail"
+  },
+  "keywords": ["hockey", "nhl", "stats", "cloudflare", "workers", "mcp"],
+  "author": "Sports Platform v3",
+  "license": "MIT"
+}
