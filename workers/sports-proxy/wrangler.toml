@@ -46,4 +46,13 @@ CACHE_TTL_COLD = "300"
 vars = { ENVIRONMENT = "production" }
 
 [env.development]
-vars = { ENVIRONMENT = "development" }
+vars = { ENVIRONMENT = "development", SKIP_AUTH = "true", CACHE_TTL_HOT = "10", CACHE_TTL_COLD = "300" }
+
+# Service Bindings for development
+[[env.development.services]]
+binding = "MLB_MCP"
+service = "baseball-stats-mcp"
+
+[[env.development.services]]
+binding = "HOCKEY_MCP"
+service = "hockey-stats-mcp"

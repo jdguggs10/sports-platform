@@ -149,7 +149,7 @@ Goal: Ensure v3.2 matches architecture and performs optimally.
 
 ## 📚 Related Documentation
 
-- [`/docs/ARCHITECTURE.md`](../docs/ARCHITECTURE.md)
+- [`/docs/PLATFORM-GUIDE.md`](../docs/PLATFORM-GUIDE.md)
 - [`/docs/V3.2-MIGRATION-GUIDE.md`](../docs/V3.2-MIGRATION-GUIDE.md)
 - [`/docs/FRONTEND-UX-BRIEF.md`](../docs/FRONTEND-UX-BRIEF.md)
 - [OpenAI Responses API Specification](https://platform.openai.com/docs/api-reference/responses)
