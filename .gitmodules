@@ -1,3 +1,0 @@
-[submodule "workers/sports-proxy"]
-	path = workers/sports-proxy
-	url = git@github.com:jdguggs10/sports-proxy.git
