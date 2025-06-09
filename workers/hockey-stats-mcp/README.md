@@ -1,54 +1,153 @@
-# Hockey Stats MCP - v3 Meta-Tool Façade
+# Hockey Stats MCP - NHL Data Service
 
-A Cloudflare Worker implementing the v3 meta-tool façade pattern for NHL hockey data. Provides intelligent entity resolution and unified endpoint access to hockey statistics.
+Cloudflare Worker implementing the v3 meta-tool façade pattern for NHL hockey data with intelligent entity resolution.
 
-## 🏒 Overview
+**Production**: https://hockey-stats-mcp.gerrygugger.workers.dev ✅
 
-Hockey Stats MCP is a self-contained microservice that exposes a single meta-tool interface hiding 6 concrete NHL API endpoints. It provides intelligent team/player name resolution and integrates seamlessly with the Sports Platform v3 architecture.
+## 🔧 Service-Specific Configuration
 
-## 🎯 v3 Meta-Tool Architecture
+### Environment Variables
+```bash
+# NHL API endpoints (fallback chain)
+NHL_API_PRIMARY=https://statsapi.web.nhl.com/api/v1/
+NHL_API_FALLBACK=https://api-web.nhle.com/v1/
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                    HOCKEY STATS MCP v3                         │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  ┌─────────────────┐   ┌─────────────────┐   ┌───────────────┐  │
-│  │ Entity Resolution│   │ Meta-Tool Façade│   │  NHL API      │  │
-│  │                 │   │                 │   │  Integration  │  │
-│  │ • "Bruins"→ID 6 │──▶│ • Single /POST  │──▶│ • Direct calls│  │
-│  │ • "McDavid"→ID  │   │ • 6 endpoints   │   │ • Retry logic │  │
-│  │ • Fuzzy matching│   │ • Smart caching │   │ • Fallbacks   │  │
-│  └─────────────────┘   └─────────────────┘   └───────────────┘  │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
+# Cache settings
+CACHE_TTL=300
+RETRY_ATTEMPTS=3
 ```
 
-## 🚀 Features
+### Local Development
+```bash
+# Start this service
+cd workers/hockey-stats-mcp
+wrangler dev --port 8783 --local
 
-### ✅ Meta-Tool Façade Pattern
-- **Single Endpoint**: `/` accepts POST requests with `endpoint` + `query` parameters
-- **6 Concrete Endpoints**: `player`, `team`, `game`, `standings`, `schedule`, `advanced`
-- **Intelligent Routing**: Automatic endpoint selection based on query parameters
-- **Unified Response Format**: Consistent data structure across all endpoints
+# Health check
+curl http://localhost:8783/health
 
-### 🧠 Intelligent Entity Resolution
-- **Team Resolution**: "Bruins" → Boston Bruins (ID: 6)
-- **Player Resolution**: "McDavid" → Connor McDavid (ID: 8478402)
-- **Fuzzy Matching**: Handles variations and abbreviations
-- **32 NHL Teams**: Complete mapping with aliases and abbreviations
-- **Star Players**: Pre-configured mappings for popular players
+# Test meta-tool interface
+curl -X POST http://localhost:8783/ \
+  -H "Content-Type: application/json" \
+  -d '{"endpoint":"team","query":{"name":"Bruins"}}'
+```
 
-### 🏒 NHL API Integration
-- **Primary API**: `https://statsapi.web.nhl.com/api/v1/`
-- **Fallback API**: `https://api-web.nhle.com/v1/` (newer endpoint)
-- **Retry Logic**: Exponential backoff for rate limiting
-- **Mock Fallback**: Demo data when APIs are unavailable
-- **Season Intelligence**: Automatic NHL season calculation
+## 📡 Meta-Tool Interface
 
-### ⚡ Performance Features
-- **Direct API Calls**: No external dependencies
-- **Smart Caching**: Metadata cached in entity resolution
+### Single Endpoint Pattern
+```bash
+POST /
+Content-Type: application/json
+
+{
+  "endpoint": "team|player|game|standings|schedule|advanced",
+  "query": { /* endpoint-specific parameters */ }
+}
+```
+
+### Available Endpoints
+- **`team`** - Team information, roster, stats
+- **`player`** - Player stats, career information  
+- **`game`** - Game details, scores, highlights
+- **`standings`** - Division/conference standings
+- **`schedule`** - Team schedules, upcoming games
+- **`advanced`** - Advanced analytics, historical data
+
+### Entity Resolution Examples
+```javascript
+// Team resolution
+{"endpoint": "team", "query": {"name": "Bruins"}}
+// Resolves: "Bruins" → Boston Bruins (ID: 6)
+
+// Player resolution  
+{"endpoint": "player", "query": {"name": "McDavid"}}
+// Resolves: "McDavid" → Connor McDavid (ID: 8478402)
+```
+
+## 🏗️ Technical Implementation
+
+### Team Mapping
+```javascript
+const TEAM_MAPPINGS = {
+  'bruins': { id: 6, name: 'Boston Bruins', abbreviation: 'BOS' },
+  'rangers': { id: 3, name: 'New York Rangers', abbreviation: 'NYR' },
+  'oilers': { id: 22, name: 'Edmonton Oilers', abbreviation: 'EDM' }
+  // ... 32 NHL teams
+};
+```
+
+### API Integration Pattern
+```javascript
+async function callNHLAPI(endpoint, params) {
+  try {
+    // Primary API call
+    return await fetch(`${NHL_API_PRIMARY}${endpoint}`, params);
+  } catch (error) {
+    // Fallback to secondary API
+    return await fetch(`${NHL_API_FALLBACK}${endpoint}`, params);
+  }
+}
+```
+
+### Retry Logic
+```javascript
+async function withRetry(apiCall, maxRetries = 3) {
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      return await apiCall();
+    } catch (error) {
+      if (i === maxRetries - 1) throw error;
+      await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, i)));
+    }
+  }
+}
+```
+
+## 🔍 Troubleshooting
+
+### Common Issues
+- **NHL API rate limits**: Implement exponential backoff
+- **Team name resolution**: Check team mappings for variations
+- **Season calculation**: Verify current NHL season dates
+- **Mock data fallback**: Used when APIs are unavailable
+
+### Debug Commands
+```bash
+# Test entity resolution
+curl -X POST http://localhost:8783/ \
+  -d '{"endpoint":"team","query":{"name":"bruins"}}'
+
+# Check API connectivity
+curl "https://statsapi.web.nhl.com/api/v1/teams"
+
+# View service logs
+wrangler tail hockey-stats-mcp --format=pretty
+```
+
+### API Response Formats
+```javascript
+// Successful response
+{
+  "success": true,
+  "data": { /* NHL API data */ },
+  "meta": {
+    "endpoint": "team",
+    "resolved": { "name": "Boston Bruins", "id": 6 },
+    "source": "nhl-api-v1"
+  }
+}
+
+// Error response
+{
+  "success": false,
+  "error": "Team not found: invalidteam",
+  "meta": { "endpoint": "team", "query": {...} }
+}
+```
+
+---
+
+For complete sports integration guide, see [Platform Guide](../../docs/PLATFORM-GUIDE.md)
 - **Retry Logic**: Robust error handling with backoff
 - **Sub-50ms Response**: Typical response times for cached entities
 

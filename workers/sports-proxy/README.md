@@ -1,34 +1,93 @@
 # Sports Proxy - OpenAI Responses API Orchestrator
 
-🚀 **Production v3.2 - Multi-Sport Intelligence with Complete Authentication**
+Central orchestrator providing native OpenAI Responses API integration with intelligent sport routing and authentication.
 
-Central orchestrator providing native OpenAI Responses API integration with intelligent sport routing, JWT authentication, and analytics. **Production: https://sports-proxy.gerrygugger.workers.dev** ✅
+**Production**: https://sports-proxy.gerrygugger.workers.dev ✅
 
-## 🎯 Architecture
+## 🔧 Service-Specific Configuration
 
-**"Menu, not meal"** design with production authentication:
-- **Sports-Proxy**: API router with sport detection & user auth
-- **Auth-MCP**: JWT tokens, Stripe billing, D1 analytics  
-- **MCP Workers**: Baseball/Hockey stats, fantasy leagues (ESPN/Yahoo)
-- **OpenAI gpt-4.1**: Natural language processing & tool orchestration
+### Environment Variables
+```bash
+# Required service bindings
+AUTH_MCP=auth-mcp
+MLB_MCP=baseball-stats-mcp  
+HOCKEY_MCP=hockey-stats-mcp
 
-## 🚀 Production Features
+# Optional configuration
+DEBUG=false
+LOG_LEVEL=error
+CACHE_TTL=300
+```
 
-- **JWT Authentication**: Secure user auth via auth-mcp service binding
-- **Subscription Tiers**: Free/Pro/Elite with Stripe billing integration
-- **Sport Detection**: Auto-detects MLB/Hockey with 75% token reduction
-- **Entity Resolution**: "Yankees" → ID 147, "Judge" → ID 592450
-- **Multi-layer Caching**: KV hot cache + R2 cold storage with smart TTLs
-- **Fantasy Integration**: ESPN/Yahoo leagues with encrypted credential storage
+### Local Development
+```bash
+# Start this service
+cd workers/sports-proxy
+wrangler dev --port 8081 --local
 
-## 🔧 Available Tools
+# Health check
+curl http://localhost:8081/health
+```
 
-**Meta**: resolve_team, resolve_player, resolve_league
-**Baseball**: get_team_info, get_player_stats, get_team_roster, get_standings, get_schedule
-**Hockey**: get_team_info, get_player_stats, get_team_roster, get_standings, get_schedule  
-**Fantasy**: get_league_info, get_team_roster, get_matchup_data, get_free_agents
+## 📡 Available Endpoints
 
-## 📡 Production Endpoints
+### Core API
+- `POST /responses` - OpenAI Responses API (primary endpoint)
+- `GET /health` - Service health and binding status
+- `GET /prefs?userId={id}` - User preferences
+- `PATCH /prefs?userId={id}` - Update preferences
+- `POST /scripts?userId={id}` - Save user scripts/macros
+
+### Available Tools by Sport
+**Meta Tools**: `resolve_team`, `resolve_player`, `resolve_league`
+**Baseball**: `get_team_info`, `get_player_stats`, `get_team_roster`, `get_standings`, `get_schedule`
+**Hockey**: `get_team_info`, `get_player_stats`, `get_team_roster`, `get_standings`, `get_schedule`
+**Fantasy**: `get_league_info`, `get_team_roster`, `get_matchup_data`, `get_free_agents`
+
+## 🏗️ Technical Implementation
+
+### Service Binding Pattern
+```javascript
+// Call MCP services via bindings
+const result = await env.MLB_MCP.fetch('/execute', {
+  method: 'POST',
+  body: JSON.stringify({ endpoint: 'team', query: { name: 'Yankees' } })
+});
+```
+
+### Sport Detection Logic
+```javascript
+// Automatic sport detection from user input
+function detectSport(input) {
+  const baseballTerms = ['yankees', 'red sox', 'mlb', 'baseball'];
+  const hockeyTerms = ['bruins', 'rangers', 'nhl', 'hockey'];
+  // Implementation details...
+}
+```
+
+## 🔍 Troubleshooting
+
+### Common Issues
+- **Service binding failures**: Check that dependent MCPs are running
+- **Authentication errors**: Verify AUTH_MCP connection
+- **Tool execution timeouts**: Check MCP service health
+- **Cache issues**: Clear KV storage if needed
+
+### Debug Commands
+```bash
+# Check service bindings
+wrangler tail sports-proxy --format=pretty
+
+# Test MCP connections  
+curl http://localhost:8081/health
+
+# Clear cache
+wrangler kv:key delete --binding=CACHE_KV "cache:key"
+```
+
+---
+
+For complete platform documentation, see [Platform Guide](../../docs/PLATFORM-GUIDE.md)
 
 ### `/responses` - OpenAI Responses API (PRIMARY)
 Production endpoint with complete authentication: https://sports-proxy.gerrygugger.workers.dev/responses

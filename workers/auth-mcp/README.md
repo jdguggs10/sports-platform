@@ -1,54 +1,146 @@
-# Sports Platform Authentication MCP
+# Auth MCP - Authentication & User Management
 
-**Production-ready authentication and user management service for Sports Platform v3.2**
+Production-ready authentication and user management service for Sports Platform v3.2.
 
-## 🎯 Overview
+**Production**: https://auth-mcp.gerrygugger.workers.dev ✅
 
-The Auth MCP is a Cloudflare-native authentication service that provides:
+## 🔧 Service-Specific Configuration
 
-- **User Management** - Signup, login, profile management
-- **JWT Authentication** - Secure token-based auth with Cloudflare Worker JWT
-- **Subscription Management** - Stripe integration for billing
-- **Fantasy Provider Credentials** - Encrypted storage for ESPN/Yahoo cookies/tokens
-- **Session Management** - Durable Object-based sessions with edge locality
-- **Security** - Turnstile CAPTCHA, encrypted credential storage, rate limiting
+### Environment Variables
+```bash
+# Database
+DATABASE=sports-platform-db
 
-## 🏗️ Architecture
+# Stripe integration
+STRIPE_SECRET_KEY=sk_live_...
+STRIPE_WEBHOOK_SECRET=whsec_...
 
+# Security
+TURNSTILE_SECRET_KEY=...
+JWT_SECRET=...
+
+# Storage
+KV_CREDENTIALS=auth-credentials
+KV_CACHE=auth-cache
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                        AUTH MCP v1.0                           │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────────────┐   │
-│  │ D1 Database  │  │ KV Storage   │  │ Durable Objects      │   │
-│  │              │  │              │  │                      │   │
-│  │ • Users      │  │ • Cred Cache │  │ • Session Manager    │   │
-│  │ • Subs       │  │ • Hot Tokens │  │ • Rate Limiter       │   │
-│  │ • Credentials│  │              │  │                      │   │
-│  └──────────────┘  └──────────────┘  └──────────────────────┘   │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
-                               │
-                               │ Service Bindings
-                               ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                      SPORTS PROXY                              │
-│                                                                 │
-│  ┌─────────────────┐    ┌─────────────────┐                   │
-│  │ JWT Middleware  │───▶│ Subscription    │                   │
-│  │                 │    │ Enforcement     │                   │
-│  └─────────────────┘    └─────────────────┘                   │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
-                               │
-                               │ User Context
-                               ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                  FANTASY MCPs                                  │
-│                                                                 │
-│  ┌─────────────────────────────────────────────────────────────┐ │
-│  │ Credential Retrieval via Service Binding                   │ │
+
+### Database Schema
+```sql
+-- Key tables managed by this service
+CREATE TABLE users (
+  id TEXT PRIMARY KEY,
+  email TEXT UNIQUE NOT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE subscriptions (
+  user_id TEXT PRIMARY KEY,
+  plan TEXT NOT NULL DEFAULT 'free',
+  status TEXT NOT NULL DEFAULT 'active',
+  stripe_customer_id TEXT,
+  stripe_subscription_id TEXT
+);
+
+CREATE TABLE fantasy_credentials (
+  user_id TEXT,
+  provider TEXT,
+  credentials TEXT, -- Encrypted JSON
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+### Local Development
+```bash
+# Start this service (start first - required by others)
+cd workers/auth-mcp
+wrangler dev --port 8787 --local
+
+# Run migrations
+wrangler d1 migrations apply sports-platform-db --local
+
+# Health check
+curl http://localhost:8787/health
+```
+
+## 📡 Available Endpoints
+
+### Authentication
+- `POST /auth/signup` - User registration with Turnstile
+- `POST /auth/login` - Magic link authentication  
+- `POST /auth/logout` - Session termination
+- `GET /auth/verify` - Token verification
+
+### User Management
+- `GET /user/{id}` - Get user profile
+- `PATCH /user/{id}` - Update user profile
+- `DELETE /user/{id}` - Delete user account
+
+### Subscription Management
+- `GET /subscription?userId={id}` - Get subscription status
+- `POST /subscription/upgrade` - Upgrade subscription
+- `POST /subscription/webhook` - Stripe webhook handler
+
+### Fantasy Credentials
+- `POST /credentials/{provider}` - Store encrypted credentials
+- `GET /credentials/{provider}?userId={id}` - Retrieve credentials
+- `DELETE /credentials/{provider}?userId={id}` - Remove credentials
+
+## 🏗️ Technical Implementation
+
+### JWT Token Structure
+```javascript
+{
+  "userId": "user-123",
+  "email": "user@example.com", 
+  "plan": "pro",
+  "iat": 1703123456,
+  "exp": 1703209856
+}
+```
+
+### Credential Encryption
+```javascript
+// Credentials are encrypted before storage
+const encryptedCredentials = await encrypt(JSON.stringify({
+  espn_s2: "cookie-value",
+  swid: "user-swid"
+}), env.ENCRYPTION_KEY);
+```
+
+### Service Binding Integration
+```javascript
+// Other services call auth via binding
+const authResult = await env.AUTH_MCP.fetch('/auth/verify', {
+  method: 'POST',
+  body: JSON.stringify({ token: sessionToken })
+});
+```
+
+## 🔍 Troubleshooting
+
+### Common Issues
+- **Database connection**: Check D1 binding configuration
+- **Stripe webhooks**: Verify endpoint URL and secret
+- **Encryption errors**: Ensure ENCRYPTION_KEY is set
+- **Session persistence**: Check Durable Objects health
+
+### Debug Commands
+```bash
+# Check database
+wrangler d1 execute sports-platform-db --command "SELECT COUNT(*) FROM users;"
+
+# Test auth flow
+curl -X POST http://localhost:8787/auth/signup \
+  -H "Content-Type: application/json" \
+  -d '{"email":"test@example.com","turnstileToken":"test"}'
+
+# Check logs
+wrangler tail auth-mcp --format=pretty
+```
+
+---
+
+For complete authentication integration guide, see [Development Guide](../../docs/DEVELOPMENT-GUIDE.md)
 │  │ • auth-mcp.fetch('/user/credentials?provider=espn')        │ │
 │  │ • Decrypted ESPN cookies/Yahoo tokens                      │ │
 │  │ • League-specific credential scoping                       │ │
