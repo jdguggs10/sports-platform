@@ -109,9 +109,9 @@ export default {
           });
         }
         
-        // Check authentication
-        const uid = query.uid;
-        if (!uid) {
+        // Check authentication - expect user ID from sports-proxy
+        const userId = query.userId || request.headers.get('X-User-ID');
+        if (!userId) {
           return new Response(JSON.stringify({
             error: 'User ID required for fantasy data'
           }), {
@@ -123,11 +123,11 @@ export default {
         // Route to appropriate provider with league_id
         let result;
         if (provider === 'espn') {
-          // Get user session and cookies for this league
-          const { swid, s2 } = await getUserCookies(uid, env, 'espn', league_id);
-          if (!swid || !s2) {
+          // Get user ESPN credentials for this league via auth-mcp
+          const credentials = await getUserCredentials(userId, env, 'espn', league_id);
+          if (!credentials || !credentials.swid || !credentials.espnS2) {
             return new Response(JSON.stringify({
-              error: 'ESPN authentication required. Please log in to ESPN.',
+              error: 'ESPN authentication required. Please link your ESPN account.',
               login_required: true,
               provider: 'espn',
               league_id: league_id
@@ -137,11 +137,14 @@ export default {
             });
           }
           
-          result = await fanOutToESPNFantasy(league_id, endpoint, query, { swid, s2 });
+          result = await fanOutToESPNFantasy(league_id, endpoint, query, { 
+            swid: credentials.swid, 
+            s2: credentials.espnS2 
+          });
         } else if (provider === 'yahoo') {
-          // Get Yahoo OAuth tokens for this league
-          const { access_token, refresh_token } = await getUserTokens(uid, env, 'yahoo', league_id);
-          if (!access_token) {
+          // Get Yahoo OAuth tokens for this league via auth-mcp
+          const credentials = await getUserCredentials(userId, env, 'yahoo', league_id);
+          if (!credentials || !credentials.access_token) {
             return new Response(JSON.stringify({
               error: 'Yahoo authentication required. Please authorize Yahoo Fantasy.',
               login_required: true,
@@ -153,7 +156,7 @@ export default {
             });
           }
           
-          result = await fanOutToYahooFantasy(league_id, endpoint, query, { access_token, refresh_token }, uid, env);
+          result = await fanOutToYahooFantasy(league_id, endpoint, query, credentials, userId, env);
         } else {
           return new Response(JSON.stringify({
             error: `Unsupported provider: ${provider}`,
@@ -186,45 +189,41 @@ export default {
 };
 
 /**
- * Get user cookies from Durable Object storage (ESPN) - v3.2 with league support
+ * Get user credentials from auth-mcp service - v3.2 with service binding
  */
-async function getUserCookies(uid, env, provider = 'espn', leagueId = null) {
-  const userSessionId = env.USER_SESSION.idFromString(uid);
-  const userSession = env.USER_SESSION.get(userSessionId);
-  
-  const request = new Request('https://localhost/getCookies', {
-    method: 'POST',
-    body: JSON.stringify({ sport: 'baseball', provider, leagueId })
-  });
-  
-  const response = await userSession.fetch(request);
-  const data = await response.json();
-  
-  return {
-    swid: data.swid,
-    s2: data.s2
-  };
+async function getUserCredentials(userId, env, provider, leagueId) {
+  try {
+    // Call auth-mcp service to get credentials
+    const response = await env.AUTH_MCP.fetch(new Request(`https://auth-mcp/user/credentials?provider=${provider}&leagueId=${leagueId}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${await getSystemToken(env)}`,
+        'X-User-ID': userId
+      }
+    }));
+
+    if (!response.ok) {
+      if (response.status === 404) {
+        return null; // No credentials found
+      }
+      throw new Error(`Auth MCP error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data.credentials;
+  } catch (error) {
+    console.error('Failed to get user credentials:', error);
+    return null;
+  }
 }
 
 /**
- * Get user OAuth tokens from Durable Object storage (Yahoo) - v3.2 with league support
+ * Get system token for internal service communication
  */
-async function getUserTokens(uid, env, provider = 'yahoo', leagueId = null) {
-  const userSessionId = env.USER_SESSION.idFromString(uid);
-  const userSession = env.USER_SESSION.get(userSessionId);
-  
-  const request = new Request('https://localhost/getTokens', {
-    method: 'POST',
-    body: JSON.stringify({ sport: 'baseball', provider, leagueId })
-  });
-  
-  const response = await userSession.fetch(request);
-  const data = await response.json();
-  
-  return {
-    access_token: data.access_token,
-    refresh_token: data.refresh_token
-  };
+async function getSystemToken(env) {
+  // For service-to-service communication, we'll use a simple internal token
+  // In production, this would be a proper JWT with system scope
+  return 'system-internal-token';
 }
 
 /**
@@ -472,16 +471,16 @@ async function updateUserTokens(uid, env, provider, tokens) {
  */
 async function discoverUserLeagues(uid, env, sport, provider) {
   if (provider === 'espn') {
-    // Get ESPN cookies
-    const { swid, s2 } = await getUserCookies(uid, env, provider);
-    if (!swid || !s2) {
+    // Get ESPN credentials from auth-mcp
+    const credentials = await getUserCredentials(uid, env, provider, null);
+    if (!credentials || !credentials.swid || !credentials.espnS2) {
       throw new Error('ESPN authentication required to discover leagues');
     }
     
     // ESPN user endpoint to get leagues
     const espnResponse = await fetch('https://fantasy.espn.com/apis/v3/games/flb/seasons/2025', {
       headers: {
-        'Cookie': `swid=${swid}; espn_s2=${s2}`,
+        'Cookie': `swid=${credentials.swid}; espn_s2=${credentials.espnS2}`,
         'User-Agent': 'Mozilla/5.0 (compatible; Baseball-Fantasy-MCP/1.0)'
       }
     });
@@ -500,16 +499,16 @@ async function discoverUserLeagues(uid, env, sport, provider) {
     }));
     
   } else if (provider === 'yahoo') {
-    // Get Yahoo tokens
-    const { access_token } = await getUserTokens(uid, env, provider);
-    if (!access_token) {
+    // Get Yahoo credentials from auth-mcp
+    const credentials = await getUserCredentials(uid, env, provider, null);
+    if (!credentials || !credentials.access_token) {
       throw new Error('Yahoo authentication required to discover leagues');
     }
     
     // Yahoo user leagues endpoint
     const yahooResponse = await fetch('https://fantasysports.yahooapis.com/fantasy/v2/users;use_login=1/games;game_keys=mlb/leagues?format=json', {
       headers: {
-        'Authorization': `Bearer ${access_token}`,
+        'Authorization': `Bearer ${credentials.access_token}`,
         'User-Agent': 'Baseball-Fantasy-MCP/1.0',
         'Accept': 'application/json'
       }

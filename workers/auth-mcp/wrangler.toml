@@ -1,0 +1,44 @@
+name = "auth-mcp"
+main = "src/index.js"
+compatibility_date = "2024-01-01"
+
+# D1 Database for user data
+[[d1_databases]]
+binding = "AUTH_DB"
+database_name = "sports-auth"
+database_id = "8813ef92-3a15-430c-bbe3-37c69f3fb033"
+migrations_dir = "migrations"
+
+# KV for encrypted credentials and session cache
+[[kv_namespaces]]
+binding = "CRED_KV"
+id = "3c946fc92ef84fd58d11c670d2e4120b"
+
+[[kv_namespaces]]
+binding = "SESSION_KV"
+id = "15714c3897fe483f8f9e15ef5ef85470"
+
+# Durable Objects for session management
+[[durable_objects.bindings]]
+name = "SESSION_DO"
+class_name = "SessionManager"
+
+# Durable Objects migrations
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["SessionManager"]
+
+# Environment variables (set via wrangler secret put)
+[vars]
+ENVIRONMENT = "development"
+JWT_ISSUER = "sports-platform.workers.dev"
+JWT_AUDIENCE = "sports-api"
+TURNSTILE_SITE_KEY = ""
+STRIPE_PUBLISHABLE_KEY = ""
+
+# Secrets (set with wrangler secret put)
+# - JWT_SECRET
+# - TURNSTILE_SECRET_KEY  
+# - STRIPE_SECRET_KEY
+# - STRIPE_WEBHOOK_SECRET
+# - ENCRYPTION_KEY

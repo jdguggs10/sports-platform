@@ -1,7 +1,7 @@
 {
-  "name": "baseball-fantasy-mcp",
+  "name": "hockey-fantasy-mcp",
   "version": "1.0.0",
-  "description": "Baseball Fantasy MCP - v3 Meta-Tool Façade with Auth",
+  "description": "Hockey Fantasy MCP - v3 Meta-Tool Façade with Auth",
   "main": "src/index.js",
   "scripts": {
     "dev": "wrangler dev",
@@ -9,7 +9,7 @@
     "tail": "wrangler tail"
   },
   "keywords": [
-    "baseball",
+    "hockey",
     "fantasy",
     "espn",
     "mcp",

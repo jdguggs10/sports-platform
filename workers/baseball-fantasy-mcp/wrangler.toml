@@ -2,7 +2,12 @@ name = "baseball-fantasy-mcp"
 main = "src/index.js"
 compatibility_date = "2025-01-06"
 
-# Durable Objects for user session storage
+# Authentication MCP service binding
+[[services]]
+binding = "AUTH_MCP"
+service = "auth-mcp"
+
+# Durable Objects for user session storage (legacy - moving to auth-mcp)
 [[durable_objects.bindings]]
 name = "USER_SESSION"
 class_name = "UserSession"

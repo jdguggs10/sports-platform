@@ -1,8 +1,30 @@
-# Frontend UX Brief - v3.2 Provider & League Selection
+# Frontend UX Brief - v3.2 Authentication & Provider Selection
 
 ## Overview
 
-This document specifies the user experience requirements for implementing provider and league selection in frontend applications using Sports Platform v3.2.
+This document specifies the user experience requirements for implementing authentication, provider selection, and league management in frontend applications using Sports Platform v3.2.
+
+## Authentication Requirements
+
+### User Authentication Flow
+```
+1. User visits app → Check for existing session token
+2. No token → Show signup/login options
+3. User enters email → Send magic link
+4. User clicks magic link → Exchange for session token
+5. Store session token → Access authenticated features
+```
+
+### Session Management
+- **Session Tokens**: JWT tokens with 24-hour expiration
+- **Token Storage**: Secure storage (httpOnly cookies or encrypted localStorage)
+- **Token Refresh**: Automatic refresh before expiration
+- **Logout**: Clear tokens and redirect to login
+
+### Subscription Enforcement
+- **Free Tier**: Basic stats access, no fantasy features
+- **Pro Tier**: Full stats + limited fantasy leagues
+- **Elite Tier**: Unlimited fantasy leagues + premium features
 
 ## User Flow Requirements
 

@@ -1,27 +1,61 @@
 {
-  "description": "Sports Platform v3.2 Test Configuration",
+  "description": "Sports Platform v3.2 Unified Test Configuration",
   "version": "3.2.0",
-  "services": {
-    "sports-proxy": {
-      "port": 8081,
-      "path": "../workers/sports-proxy",
-      "healthEndpoint": "/health",
-      "required": true,
-      "description": "Main orchestrator - OpenAI Responses API integration"
+  "production": {
+    "baseUrls": {
+      "authMCP": "https://auth-mcp.gerrygugger.workers.dev",
+      "sportsProxy": "https://sports-proxy.gerrygugger.workers.dev",
+      "baseballStats": "https://baseball-stats-mcp.gerrygugger.workers.dev",
+      "baseballFantasy": "https://baseball-fantasy-mcp.gerrygugger.workers.dev",
+      "hockeyStats": "https://hockey-stats-mcp.gerrygugger.workers.dev",
+      "hockeyFantasy": "https://hockey-fantasy-mcp.gerrygugger.workers.dev"
     },
-    "hockey-stats-mcp": {
-      "port": 8783,
-      "path": "../workers/hockey-stats-mcp",
-      "healthEndpoint": "/health",
-      "required": true,
-      "description": "Hockey statistics and data via NHL API"
+    "timeouts": {
+      "healthCheck": 5000,
+      "apiCall": 10000,
+      "integration": 15000
     },
-    "baseball-stats-mcp": {
-      "port": 8782,
-      "path": "../workers/mlbstats-mcp",
-      "healthEndpoint": "/health",
-      "required": true,
-      "description": "Baseball statistics and data via MLB Stats API"
+    "thresholds": {
+      "responseTime": 2000,
+      "successRate": 0.9,
+      "cacheHitRate": 0.6
+    }
+  },
+  "development": {
+    "services": {
+      "sports-proxy": {
+        "port": 8081,
+        "path": "../workers/sports-proxy",
+        "healthEndpoint": "/health",
+        "required": true,
+        "description": "Main orchestrator - OpenAI Responses API integration"
+      },
+      "hockey-stats-mcp": {
+        "port": 8783,
+        "path": "../workers/hockey-stats-mcp",
+        "healthEndpoint": "/health",
+        "required": true,
+        "description": "Hockey statistics and data via NHL API"
+      },
+      "baseball-stats-mcp": {
+        "port": 8782,
+        "path": "../workers/baseball-stats-mcp",
+        "healthEndpoint": "/health",
+        "required": true,
+        "description": "Baseball statistics and data via MLB Stats API"
+      }
+    },
+    "requiredFiles": [
+      "workers/auth-mcp/src/index.js",
+      "workers/auth-mcp/src/services/userAnalytics.js",
+      "workers/sports-proxy/src/index.js",
+      "workers/sports-proxy/src/analytics/userTracker.js",
+      "docs/PLATFORM-GUIDE.md",
+      "tests/test-production.js"
+    ],
+    "thresholds": {
+      "successRate": 0.85,
+      "codeQuality": 0.9
     }
   },
   "timeouts": {

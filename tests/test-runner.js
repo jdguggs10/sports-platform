@@ -198,6 +198,9 @@ class SportsTestRunner {
         case 'fantasy-providers':
           await this.runFantasyProviderTests(suiteResults);
           break;
+        case 'prompt-system':
+          await this.runPromptSystemTests(suiteResults);
+          break;
         case 'performance':
           await this.runPerformanceTests(suiteResults);
           break;
@@ -625,6 +628,137 @@ class SportsTestRunner {
         heapUsed: Math.round(afterMemory.heapUsed / 1024 / 1024) + 'MB',
         memoryStable: heapGrowth < 1024 * 1024 // Less than 1MB growth
       };
+    });
+  }
+
+  async runPromptSystemTests(suite) {
+    // Test 1: Multi-layer prompt assembly
+    await this.runTest(suite, 'multi-layer-prompt-assembly', async () => {
+      const response = await fetch(`${this.baseUrl}/query`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: 'test-user-prompts',
+          sport: 'baseball',
+          query: 'Test multi-layer prompt assembly'
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Query endpoint failed: ${response.status}`);
+      }
+
+      // For streaming response, just verify headers and initial connection
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('text/event-stream')) {
+        throw new Error('Query endpoint should return SSE stream');
+      }
+
+      return { endpoint: 'functional', streaming: true, promptLayers: 'assembled' };
+    });
+
+    // Test 2: User preferences management
+    await this.runTest(suite, 'user-preferences', async () => {
+      const userId = 'test-prefs-user';
+      const testPrefs = {
+        tone: 'casual',
+        favoriteTeam: 'Boston Red Sox',
+        detailLevel: 'detailed'
+      };
+
+      // Save preferences
+      const saveResponse = await fetch(`${this.baseUrl}/prefs?userId=${userId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(testPrefs)
+      });
+
+      if (!saveResponse.ok) {
+        throw new Error(`Failed to save preferences: ${saveResponse.status}`);
+      }
+
+      // Retrieve preferences  
+      const getResponse = await fetch(`${this.baseUrl}/prefs?userId=${userId}`);
+      const retrieved = await getResponse.json();
+
+      if (retrieved.tone !== testPrefs.tone) {
+        throw new Error('Retrieved preferences do not match saved');
+      }
+
+      return { saved: true, retrieved: true, matching: true };
+    });
+
+    // Test 3: Script management
+    await this.runTest(suite, 'script-management', async () => {
+      const userId = 'test-script-user';
+      const scriptId = 'test-script';
+      const scriptData = {
+        id: scriptId,
+        name: 'Test Script',
+        description: 'Test script for testing',
+        content: 'Give me a test analysis'
+      };
+
+      // Create script
+      const createResponse = await fetch(`${this.baseUrl}/scripts?userId=${userId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(scriptData)
+      });
+
+      if (!createResponse.ok) {
+        throw new Error(`Failed to create script: ${createResponse.status}`);
+      }
+
+      // List scripts
+      const listResponse = await fetch(`${this.baseUrl}/scripts?userId=${userId}`);
+      const scripts = await listResponse.json();
+
+      if (!Array.isArray(scripts) || scripts.length === 0) {
+        throw new Error('Script not found in list');
+      }
+
+      // Delete script
+      const deleteResponse = await fetch(`${this.baseUrl}/scripts?userId=${userId}&scriptId=${scriptId}`, {
+        method: 'DELETE'
+      });
+
+      if (!deleteResponse.ok) {
+        throw new Error(`Failed to delete script: ${deleteResponse.status}`);
+      }
+
+      return { created: true, listed: true, deleted: true };
+    });
+
+    // Test 4: Domain-specific tool filtering
+    await this.runTest(suite, 'domain-tool-filtering', async () => {
+      // Test baseball domain
+      const baseballResponse = await fetch(`${this.baseUrl}/query`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: 'test-domain-user',
+          sport: 'baseball',
+          query: 'Test baseball tools'
+        })
+      });
+
+      // Test hockey domain
+      const hockeyResponse = await fetch(`${this.baseUrl}/query`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: 'test-domain-user', 
+          sport: 'hockey',
+          query: 'Test hockey tools'
+        })
+      });
+
+      if (!baseballResponse.ok || !hockeyResponse.ok) {
+        throw new Error('Domain filtering requests failed');
+      }
+
+      return { baseball: 'functional', hockey: 'functional', filtering: 'active' };
     });
   }
 

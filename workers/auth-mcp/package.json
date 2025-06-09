@@ -1,0 +1,25 @@
+{
+  "name": "auth-mcp",
+  "version": "1.0.0",
+  "description": "Sports Platform Authentication & User Management MCP Worker",
+  "main": "src/index.js",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "test": "node test-auth.js"
+  },
+  "keywords": [
+    "cloudflare",
+    "workers",
+    "auth",
+    "mcp",
+    "sports"
+  ],
+  "author": "Sports Platform",
+  "license": "MIT",
+  "devDependencies": {
+    "wrangler": "^3.0.0"
+  },
+  "dependencies": {},
+  "type": "commonjs"
+}
