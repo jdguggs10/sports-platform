@@ -65,13 +65,16 @@ async function testEnhancedHybridFlow() {
   const testInput = "Tell me about the Yankees roster";
   
   // Get available tools (filtered for MLB)
-  const allTools = await orchestrator.listTools();
-  const mlbTools = orchestrator._buildFilteredTools('mlb', 0.8);
+  // Directly call listTools with the sport. listTools now returns the full tool definitions.
+  const allToolDefinitions = await orchestrator.listTools('mlb'); 
+  // If the test specifically needs a list of tool names, map the definitions.
+  const mlbToolNames = allToolDefinitions.map(toolDef => toolDef.function.name);
   
-  console.log(`📋 MLB Tools Available: ${mlbTools.join(', ')}`);
+  console.log(`📋 MLB Tools Available: ${mlbToolNames.join(', ')}`);
   
   // Extract tool calls from natural language
-  const toolCalls = orchestrator._extractToolCalls(testInput, allTools.tools.filter(t => mlbTools.includes(t.name)));
+  // Pass the full tool definitions to _extractToolCalls
+  const toolCalls = orchestrator._extractToolCalls(testInput, allToolDefinitions);
   
   console.log('🔍 Extracted Tool Calls:');
   toolCalls.forEach((call, i) => {

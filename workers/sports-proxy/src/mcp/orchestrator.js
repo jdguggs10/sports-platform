@@ -27,25 +27,31 @@ class ResponsesAPIOrchestrator {
   /**
    * Process OpenAI Responses API request natively
    */
-  async processResponsesAPIRequest({ model, input, tools, previous_response_id, instructions, stream, memories }) {
+  async processResponsesAPIRequest({ model, input, tools, previous_response_id, instructions, stream, memories, sport }) { // Added sport parameter
     const responseId = this.openAIRequestProcessor._generateResponseId();
     const timestamp = Date.now() / 1000;
 
     const processedInput = this.openAIConversationManager.processInputWithMemories(input, memories, previous_response_id);
     
-    // Use contextAnalyzer for sport detection if needed for tool filtering, though ToolHandler also has it
-    // const { sport, confidence } = this.contextAnalyzer.detectSport(processedInput);
-    // const filteredTools = this.toolHandler.buildFilteredTools(sport, confidence, tools); // Pass original tools if needed
+    // Sport is now passed in, no need to detect here.
+    // const filteredTools = this.toolHandler.buildFilteredTools(sport, confidence, tools); // This was already removed/commented
 
     // Tool extraction now considers the 'tools' parameter from the OpenAI request.
-    const toolCalls = this.toolHandler.extractToolCalls(processedInput, tools);
+    // The `tools` variable here are the definitions provided by the client.
+    // We should use the passed `sport` to get the *allowed* tools for that sport via `this.toolHandler.listTools(sport)`
+    // and then `extractToolCalls` can use *those* definitions if the client didn't provide specific `tools`.
+    // However, the current `extractToolCalls` expects the `tools` (definitions) to be passed to it.
+    // For now, we assume `tools` provided by the client are already sport-filtered or the LLM will choose correctly.
+    // If `tools` is not provided by the client, then `listTools(sport)` should be used to populate them.
+    
+    const availableToolsForSport = this.toolHandler.listTools(sport); // Get tools for the given sport
+    const toolCalls = this.toolHandler.extractToolCalls(processedInput, tools || availableToolsForSport);
 
     if (stream) {
       const { readable, writable } = new TransformStream();
       const writer = writable.getWriter();
       const encoder = new TextEncoder();
 
-      // Pass necessary methods to processStreamingRequest
       this.openAIResponseProcessor.createStreamingResponse({
         responseId,
         writer,
@@ -56,7 +62,7 @@ class ResponsesAPIOrchestrator {
             toolCalls,
             executeToolFn: (toolName, args) => this.toolHandler._executeSingleTool(toolName, args),
             formatToolResultFn: (toolName, result) => this.toolHandler.formatSingleToolResult(toolName, result),
-            generateContextualResponseFn: (inp) => this.contextAnalyzer.generateContextualResponse(inp)
+            generateContextualResponseFn: (inp) => this.contextAnalyzer.generateContextualResponse(inp, sport) // Pass sport
           });
         }
       });
@@ -74,7 +80,7 @@ class ResponsesAPIOrchestrator {
         output: [{
           id: this.openAIRequestProcessor._generateMessageId(),
           content: [{
-            text: this.contextAnalyzer.generateContextualResponse(processedInput),
+            text: this.contextAnalyzer.generateContextualResponse(processedInput, sport), // Pass sport
             type: "output_text"
           }],
           role: "assistant",
@@ -117,10 +123,10 @@ class ResponsesAPIOrchestrator {
    * This is for direct calls to list tools, not for OpenAI's `tools` parameter.
    * OpenAI's `tools` parameter in the request should be a list of tool definitions.
    */
-  async listTools() {
+  async listTools(sport) { // Added sport parameter
     // Returns the format expected by older /tools endpoint if any, or internal use.
     // For OpenAI, the client sends the tool definitions.
-    return { tools: this.toolHandler.listTools() }; // toolHandler.listTools() returns an array of tool definitions
+    return { tools: this.toolHandler.listTools(sport) }; // Pass sport to toolHandler.listTools
   }
 
   /**

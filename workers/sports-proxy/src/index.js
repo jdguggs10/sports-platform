@@ -93,10 +93,11 @@ async function handleLegacyMCP(request, env) {
   try {
     const body = await request.json();
     const orchestrator = new ResponsesAPIOrchestrator(env);
+    const sport = body.sport || request.headers.get('X-Sport') || 'sport-null'; // Extract sport
     
     switch (body.method) {
       case 'tools/list':
-        return new Response(JSON.stringify(await orchestrator.listTools()), {
+        return new Response(JSON.stringify(await orchestrator.listTools(sport)), { // Pass sport
           headers: { "Content-Type": "application/json", ...getCorsHeaders() }
         });
         

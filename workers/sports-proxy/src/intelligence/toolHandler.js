@@ -9,28 +9,6 @@ class ToolHandler {
   }
 
   /**
-   * Build filtered tool list based on detected sport
-   */
-  buildFilteredTools(sport, confidence) {
-    const sportTools = {
-      mlb: [
-        "resolve_team", "resolve_player", "get_team_info", "get_player_stats",
-        "get_team_roster", "get_schedule", "get_standings", "get_live_game"
-      ],
-      hockey: [
-        "resolve_team", "resolve_player", "get_team_info", "get_player_stats",
-        "get_team_roster", "get_schedule", "get_standings", "get_live_game"
-      ],
-      nfl: [],
-      nba: []
-    };
-    if (confidence < 0.7) {
-      return sportTools.mlb; // Default for low confidence
-    }
-    return sportTools[sport] || sportTools.mlb;
-  }
-
-  /**
    * Extract tool calls from input
    */
   extractToolCalls(input, tools) {
@@ -214,88 +192,91 @@ class ToolHandler {
   }
 
    /**
-   * List all available tools for legacy MCP compatibility or direct listing.
+   * List all available tools based on the selected sport.
    * This should align with what OpenAI expects in the `tools` array.
+   * @param {string} sport - The selected sport (e.g., 'baseball', 'football', 'hockey', 'basketball', 'sport-null').
    */
-  listTools() {
-    // These definitions should match the `tools` array structure for OpenAI
-    return [
-      {
+  listTools(sport) { // Added sport parameter
+    const baseToolDefinitions = {
+      resolve_team: {
         type: "function",
         function: {
           name: "resolve_team",
-          description: "Resolve team name to team ID and information",
+          description: "Resolve team name to team ID and information for the selected sport",
           parameters: {
             type: "object",
             properties: {
-              name: { type: "string", description: "Team name (e.g., 'Yankees', 'Red Sox')" }
+              name: { type: "string", description: "Team name (e.g., 'Yankees', 'Rangers')" }
             },
             required: ["name"]
           }
         }
       },
-      {
+      resolve_player: {
         type: "function",
         function: {
           name: "resolve_player",
-          description: "Resolve player name to player ID and information",
+          description: "Resolve player name to player ID and information for the selected sport",
           parameters: {
             type: "object",
             properties: {
-              name: { type: "string", description: "Player name (e.g., 'Aaron Judge', 'Ohtani')" }
+              name: { type: "string", description: "Player name (e.g., 'Aaron Judge', 'Artemi Panarin')" }
             },
             required: ["name"]
           }
         }
       },
-      {
+      get_team_info: {
         type: "function",
         function: {
           name: "get_team_info",
-          description: "Get MLB team information",
+          description: "Get team information for the selected sport",
           parameters: {
             type: "object",
             properties: {
-              teamId: { type: "string", description: "MLB team ID" },
+              teamId: { type: "string", description: "Team ID" },
               season: { type: "string", description: "Season year" }
             }
+            // required: ["teamId"] // teamId will likely be enriched
           }
         }
       },
-      {
+      get_player_stats: {
         type: "function",
         function: {
           name: "get_player_stats",
-          description: "Get MLB player statistics",
+          description: "Get player statistics for the selected sport",
           parameters: {
             type: "object",
             properties: {
-              playerId: { type: "string", description: "MLB player ID" },
+              playerId: { type: "string", description: "Player ID" },
               season: { type: "string", description: "Season year" },
-              statType: { type: "string", description: "Type of stats (hitting, pitching)" }
+              statType: { type: "string", description: "Type of stats (e.g., hitting, pitching, scoring)" }
             }
+            // required: ["playerId"] // playerId will likely be enriched
           }
         }
       },
-      {
+      get_team_roster: {
         type: "function",
         function: {
           name: "get_team_roster",
-          description: "Get MLB team roster",
+          description: "Get team roster for the selected sport",
           parameters: {
             type: "object",
             properties: {
-              teamId: { type: "string", description: "MLB team ID" },
+              teamId: { type: "string", description: "Team ID" },
               season: { type: "string", description: "Season year" }
             }
+            // required: ["teamId"]
           }
         }
       },
-      {
+      get_schedule: {
         type: "function",
         function: {
           name: "get_schedule",
-          description: "Get MLB game schedule",
+          description: "Get game schedule for the selected sport",
           parameters: {
             type: "object",
             properties: {
@@ -305,34 +286,66 @@ class ToolHandler {
           }
         }
       },
-      {
+      get_standings: {
         type: "function",
         function: {
           name: "get_standings",
-          description: "Get MLB standings",
+          description: "Get standings for the selected sport",
           parameters: {
             type: "object",
             properties: {
               season: { type: "string", description: "Season year" },
-              divisionId: { type: "string", description: "Optional division ID" }
+              leagueOrDivisionId: { type: "string", description: "Optional league or division ID" }
             }
           }
         }
       },
-      {
+      get_live_game: {
         type: "function",
         function: {
           name: "get_live_game",
-          description: "Get live MLB game data",
+          description: "Get live game data for the selected sport",
           parameters: {
             type: "object",
             properties: {
-              gameId: { type: "string", description: "MLB game ID" }
+              gameId: { type: "string", description: "Game ID" }
             }
+            // required: ["gameId"]
           }
         }
       }
+    };
+
+    const commonSportsTools = [
+      baseToolDefinitions.resolve_team,
+      baseToolDefinitions.resolve_player,
+      baseToolDefinitions.get_team_info,
+      baseToolDefinitions.get_player_stats,
+      baseToolDefinitions.get_team_roster,
+      baseToolDefinitions.get_schedule,
+      baseToolDefinitions.get_standings,
+      baseToolDefinitions.get_live_game
     ];
+
+    const sportSpecificTools = {
+      baseball: commonSportsTools,
+      hockey: commonSportsTools, // Assuming same tools for now
+      football: [ // Placeholder: Define actual football tools
+        baseToolDefinitions.resolve_team,
+        baseToolDefinitions.resolve_player,
+        baseToolDefinitions.get_team_info,
+        // Add more football-specific tools or variations
+      ],
+      basketball: [ // Placeholder: Define actual basketball tools
+        baseToolDefinitions.resolve_team,
+        baseToolDefinitions.resolve_player,
+        baseToolDefinitions.get_team_info,
+        // Add more basketball-specific tools or variations
+      ],
+      'sport-null': [] // Default for errors or unspecified sport
+    };
+
+    return sportSpecificTools[sport] || sportSpecificTools['sport-null'];
   }
 }
 
