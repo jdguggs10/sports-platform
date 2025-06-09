@@ -1,5 +1,7 @@
 # Sports Proxy - OpenAI Responses API Orchestrator
 
+# Note: this project is still in active development and has no users at this time!
+
 🚀 **Version 3.0 - Production Ready with Multi-Sport Support!**
 
 The central orchestrator for Sports Platform v3, providing native OpenAI Responses API integration with intelligent sport-scoped routing. **All tests passing ✅**
