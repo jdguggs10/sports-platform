@@ -8,6 +8,9 @@
 const { SportsTestRunner } = require('./test-runner');
 const { ArchitecturalValidator } = require('./architectural-validator');
 
+// Default model configuration
+const DEFAULT_MODEL = 'gpt-4.1-mini';
+
 class CIIntegration {
   constructor() {
     this.baseUrl = process.env.TEST_BASE_URL || 'http://localhost:8081';
@@ -112,7 +115,7 @@ class CIIntegration {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            model: 'gpt-4.1',
+            model: DEFAULT_MODEL,
             input: 'CI Guard test',
             userId: 'ci-guard'
           })

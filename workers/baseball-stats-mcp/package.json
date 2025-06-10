@@ -1,8 +1,11 @@
 {
   "name": "baseball-stats-mcp",
-  "version": "1.0.0",
-  "description": "Baseball Stats MCP - v3 Meta-Tool Façade",
+  "version": "3.1.0",
+  "description": "Baseball Stats MCP - OpenAI Responses API compatible tool provider",
   "main": "src/index.js",
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
@@ -12,6 +15,8 @@
     "baseball",
     "stats",
     "mcp",
+    "openai",
+    "tools",
     "cloudflare",
     "worker"
   ],

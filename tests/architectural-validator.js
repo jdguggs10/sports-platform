@@ -5,6 +5,9 @@
  * matches the documented architecture and follows best practices.
  */
 
+// Default model configuration
+const DEFAULT_MODEL = 'gpt-4.1-mini';
+
 class ArchitecturalValidator {
   constructor(baseUrl = 'http://localhost:8081') {
     this.baseUrl = baseUrl;
@@ -43,7 +46,7 @@ class ArchitecturalValidator {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'gpt-4.1',
+        model: DEFAULT_MODEL,
         input: 'Test compliance check',
         userId: 'validator'
       })
@@ -63,7 +66,7 @@ class ArchitecturalValidator {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'gpt-4.1',
+        model: DEFAULT_MODEL,
         input: 'Test streaming',
         stream: true,
         userId: 'validator'
@@ -82,7 +85,7 @@ class ArchitecturalValidator {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'gpt-4.1',
+        model: DEFAULT_MODEL,
         input: 'Follow-up message',
         previous_response_id: result.id,
         userId: 'validator'

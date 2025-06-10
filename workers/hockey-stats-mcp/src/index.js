@@ -144,9 +144,17 @@ export default {
           status: 'healthy',
           timestamp: new Date().toISOString(),
           endpoints: ['player', 'team', 'game', 'standings', 'schedule', 'advanced'],
-          version: '3.0.0',
-          integration: 'NHL API Direct'
+          version: '3.1.0',
+          integration: 'NHL API Direct',
+          openai_tools_endpoint: '/openai-tools.json'
         }), {
+          headers: { "Content-Type": "application/json" }
+        });
+      }
+      
+      // OpenAI Tools Schema Endpoint
+      if (url.pathname === '/openai-tools.json') {
+        return new Response(JSON.stringify(getOpenAIToolSchemas()), {
           headers: { "Content-Type": "application/json" }
         });
       }
@@ -525,4 +533,185 @@ function resolveTeam(teamName) {
 function resolvePlayer(playerName) {
   const normalizedName = playerName.toLowerCase().trim();
   return NHL_PLAYERS[normalizedName] || null;
+}
+
+/**
+ * Get OpenAI-compatible tool schemas for hockey
+ */
+function getOpenAIToolSchemas() {
+  return [
+    {
+      type: "function",
+      function: {
+        name: "resolve_team",
+        description: "Resolve hockey team name to team ID and information",
+        parameters: {
+          type: "object",
+          properties: {
+            name: {
+              type: "string", 
+              description: "Team name (e.g., 'Bruins', 'Rangers', 'Oilers')"
+            }
+          },
+          required: ["name"]
+        }
+      }
+    },
+    {
+      type: "function",
+      function: {
+        name: "resolve_player", 
+        description: "Resolve hockey player name to player ID and information",
+        parameters: {
+          type: "object",
+          properties: {
+            name: {
+              type: "string",
+              description: "Player name (e.g., 'Connor McDavid', 'Sidney Crosby')"
+            }
+          },
+          required: ["name"]
+        }
+      }
+    },
+    {
+      type: "function",
+      function: {
+        name: "get_team_info",
+        description: "Get hockey team information including stats and roster details",
+        parameters: {
+          type: "object", 
+          properties: {
+            teamId: {
+              type: "string",
+              description: "NHL team ID (resolved automatically if name provided)"
+            },
+            name: {
+              type: "string", 
+              description: "Team name for auto-resolution"
+            },
+            season: {
+              type: "string",
+              description: "Season year (defaults to current)"
+            }
+          }
+        }
+      }
+    },
+    {
+      type: "function",
+      function: {
+        name: "get_player_stats",
+        description: "Get hockey player statistics",
+        parameters: {
+          type: "object",
+          properties: {
+            playerId: {
+              type: "string",
+              description: "NHL player ID (resolved automatically if name provided)"
+            },
+            name: {
+              type: "string",
+              description: "Player name for auto-resolution"
+            },
+            season: {
+              type: "string", 
+              description: "Season year (defaults to current)"
+            },
+            statType: {
+              type: "string",
+              description: "Stats type: regular, playoffs, goalsByGameSituation",
+              enum: ["regular", "playoffs", "goalsByGameSituation"]
+            }
+          }
+        }
+      }
+    },
+    {
+      type: "function",
+      function: {
+        name: "get_team_roster",
+        description: "Get hockey team roster",
+        parameters: {
+          type: "object",
+          properties: {
+            teamId: {
+              type: "string",
+              description: "NHL team ID (resolved automatically if name provided)"
+            },
+            name: {
+              type: "string",
+              description: "Team name for auto-resolution"  
+            },
+            season: {
+              type: "string",
+              description: "Season year (defaults to current)"
+            }
+          }
+        }
+      }
+    },
+    {
+      type: "function",
+      function: {
+        name: "get_schedule",
+        description: "Get hockey game schedule",
+        parameters: {
+          type: "object",
+          properties: {
+            date: {
+              type: "string",
+              description: "Date in YYYY-MM-DD format (defaults to today)"
+            },
+            teamId: {
+              type: "string", 
+              description: "Optional team ID filter"
+            },
+            expand: {
+              type: "string",
+              description: "Additional data to include (e.g., 'schedule.linescore')"
+            }
+          }
+        }
+      }
+    },
+    {
+      type: "function",
+      function: {
+        name: "get_standings",
+        description: "Get hockey standings",
+        parameters: {
+          type: "object",
+          properties: {
+            season: {
+              type: "string",
+              description: "Season year (defaults to current)"
+            },
+            type: {
+              type: "string",
+              description: "Standings type: regularSeason, playoffs, preseason",
+              enum: ["regularSeason", "playoffs", "preseason"]
+            }
+          }
+        }
+      }
+    },
+    {
+      type: "function",
+      function: {
+        name: "get_live_game",
+        description: "Get live hockey game data and play-by-play",
+        parameters: {
+          type: "object",
+          properties: {
+            gameId: {
+              type: "string",
+              description: "NHL game ID"
+            }
+          },
+          required: ["gameId"]
+        }
+      }
+    }
+  ];
 }

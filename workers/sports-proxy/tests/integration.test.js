@@ -8,6 +8,9 @@
 const { ResponsesAPIOrchestrator } = require('../src/mcp/orchestrator');
 const { createMockEnv, TEST_CONFIG, TEST_DATA, helpers } = require('./test-utils');
 
+// Import default model configuration
+const DEFAULT_MODEL = 'gpt-4.1-mini';
+
 class IntegrationTestSuite {
   constructor() {
     this.results = [];
@@ -65,7 +68,7 @@ class IntegrationTestSuite {
     try {
       // Test the full flow: natural language -> tool detection -> resolver -> enrichment -> data
       const result = await orchestrator.processResponsesAPIRequest({
-        model: 'gpt-4.1',
+        model: DEFAULT_MODEL,
         input: 'Get the roster for the Yankees and tell me about their star players',
         tools: [
           {
@@ -107,7 +110,7 @@ class IntegrationTestSuite {
     try {
       // Test the enhanced hybrid approach with approve/enrich step
       const result = await orchestrator.processResponsesAPIRequest({
-        model: 'gpt-4.1',
+        model: DEFAULT_MODEL,
         input: 'Tell me about the Yankees team',
         tools: [
           {
@@ -157,7 +160,7 @@ class IntegrationTestSuite {
       // Test retrieval of previous response
       const response = await helpers.makeRequest('/responses', {
         body: JSON.stringify({
-          model: 'gpt-4.1',
+          model: DEFAULT_MODEL,
           input: 'Continue from where we left off',
           previous_response_id: this.responseIds[0]
         })

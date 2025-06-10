@@ -1,235 +1,504 @@
-# Sports Proxy - OpenAI Responses API Orchestrator
+# Sports Proxy Worker - OpenAI Responses API with Entity Resolution
 
-Central orchestrator providing native OpenAI Responses API integration with intelligent sport routing and authentication.
+A comprehensive Cloudflare Worker implementation using the official OpenAI Responses API with sport-specific entity resolution and intelligence orchestration.
 
-**Production**: https://sports-proxy.gerrygugger.workers.dev ✅
+## 🚀 Features
 
-## 🔧 Service-Specific Configuration
+### Official SDK Implementation
+- ✅ Uses `client.responses.create` from the official `openai` npm package
+- ✅ Built-in retries and error handling with specific error subclasses
+- ✅ Parameter validation and type safety
+- ✅ Raw HTTP response access with `.withResponse()`
 
-### Environment Variables
-```bash
-# Required service bindings
-AUTH_MCP=auth-mcp
-MLB_MCP=baseball-stats-mcp  
-HOCKEY_MCP=hockey-stats-mcp
+### State Management
+- ✅ Server-side conversation state with `store: true`
+- ✅ Automatic conversation continuity using `previous_response_id`
+- ✅ ConversationManager class for stateful interactions
+- ✅ No manual history tracking required
 
-# Optional configuration
-DEBUG=false
-LOG_LEVEL=error
-CACHE_TTL=300
+### Function Calling
+- ✅ Simplified function calling with automatic execution
+- ✅ Built-in function definition, execution, and result passing
+- ✅ Error handling for function execution
+- ✅ Support for multiple function calls in sequence
+
+### Enhanced Features
+- ✅ Streaming responses with Server-Sent Events (SSE)
+- ✅ Sports-specific query optimization
+- ✅ Built-in tools: web search, code interpreter, file search
+- ✅ Reasoning capabilities with `gpt-4.1-mini`
+- ✅ Enhanced error handling with OpenAI error types
+- ✅ **4 Sport-Specific Entity Resolvers**
+- ✅ **Intelligent naming discrepancy resolution**
+- ✅ **Lightweight resolver LLM scripts**
+- ✅ **Database-backed entity resolution with aliases**
+
+## 📁 File Structure
+
+```
+src/
+├── index.js                 # Main Cloudflare Worker entry point
+├── openai/
+│   └── responsesapi.js      # Complete Responses API implementation
+├── prompts/
+│   ├── index.js            # Unified prompt system exports
+│   ├── manager.js          # Enhanced prompt management with memory
+│   ├── general.js          # General sports assistant prompts
+│   ├── baseball.js         # MLB-specific prompts and expertise
+│   ├── hockey.js           # NHL-specific prompts and analytics
+│   └── football.js         # NFL-specific prompts and strategy
+├── registry/
+│   └── toolRegistry.js     # Dynamic tool registration and routing
+└── test-responses-api.js    # Comprehensive test suite
+
+../sport-resolvers/
+├── baseball-resolver-mcp/   # Baseball entity resolver
+├── hockey-resolver-mcp/     # Hockey entity resolver
+├── football-resolver-mcp/   # Football entity resolver (placeholder)
+└── basketball-resolver-mcp/ # Basketball entity resolver (placeholder)
 ```
 
-### Local Development
-```bash
-# Start this service
-cd workers/sports-proxy
-wrangler dev --port 8081 --local
+## 🎯 Entity Resolution Architecture
 
-# Health check
-curl http://localhost:8081/health
-```
+The system implements a sophisticated 4-sport entity resolution architecture:
 
-## 📡 Available Endpoints
+### Sport-Specific Resolvers
+Lightweight LLM scripts that resolve naming discrepancies:
 
-### Core API
-- `POST /responses` - OpenAI Responses API (primary endpoint)
-- `GET /health` - Service health and binding status
-- `GET /prefs?userId={id}` - User preferences
-- `PATCH /prefs?userId={id}` - Update preferences
-- `POST /scripts?userId={id}` - Save user scripts/macros
+- **Baseball Resolver**: MLB teams/players with comprehensive aliases
+  - "Yankees" → New York Yankees (ID: 147)
+  - "Judge" → Aaron Judge (ID: 592450)
+  - Full database with 30 teams + star players
 
-### Available Tools by Sport
-**Meta Tools**: `resolve_team`, `resolve_player`, `resolve_league`
-**Baseball**: `get_team_info`, `get_player_stats`, `get_team_roster`, `get_standings`, `get_schedule`
-**Hockey**: `get_team_info`, `get_player_stats`, `get_team_roster`, `get_standings`, `get_schedule`
-**Fantasy**: `get_league_info`, `get_team_roster`, `get_matchup_data`, `get_free_agents`
+- **Hockey Resolver**: NHL teams/players with nickname mapping  
+  - "Bruins" → Boston Bruins (ID: 6)
+  - "McDavid" → Connor McDavid (ID: 8478402)
+  - Placeholder structure with 32 teams
 
-## 🏗️ Technical Implementation
+- **Football Resolver**: NFL teams/players (placeholder)
+  - Ready for population with NFL data
+  - 32 teams structure with sample players
 
-### Service Binding Pattern
+- **Basketball Resolver**: NBA teams/players (placeholder)
+  - Ready for population with NBA data
+  - 30 teams structure with sample players
+
+### Resolution Process
 ```javascript
-// Call MCP services via bindings
-const result = await env.MLB_MCP.fetch('/execute', {
-  method: 'POST',
-  body: JSON.stringify({ endpoint: 'team', query: { name: 'Yankees' } })
+// Entity resolution flow
+1. LLM request: "Get Aaron Judge stats"
+2. Tool call: resolve_baseball_player({name: "Aaron Judge"})
+3. Resolver returns: {id: 592450, name: "Aaron Judge", team_id: 147}
+4. Stats API call with resolved ID
+5. Response to user with accurate data
+```
+
+## 🛠 Core Classes
+
+### SportsResponsesAPI
+
+The main API client implementing the OpenAI Responses API.
+
+```javascript
+import { SportsResponsesAPI } from './openai/responsesapi.js';
+
+const api = new SportsResponsesAPI(apiKey, {
+  timeout: 30000,
+  maxRetries: 3
+});
+
+// Basic response
+const response = await api.createResponse("What's the latest NBA news?");
+
+// With tools
+const response = await api.createResponse("Analyze player performance", {
+  tools: [{ type: 'web_search' }, { type: 'code_interpreter' }]
 });
 ```
 
-### Sport Detection Logic
+### ConversationManager
+
+Manages stateful conversations with automatic state tracking.
+
 ```javascript
-// Automatic sport detection from user input
-function detectSport(input) {
-  const baseballTerms = ['yankees', 'red sox', 'mlb', 'baseball'];
-  const hockeyTerms = ['bruins', 'rangers', 'nhl', 'hockey'];
-  // Implementation details...
-}
+const conversation = api.createConversation(
+  "You are a fantasy sports expert",
+  { temperature: 0.8 }
+);
+
+const response1 = await conversation.sendMessage("Help me with my draft");
+const response2 = await conversation.sendMessage("What about trade strategies?");
 ```
 
-## 🔍 Troubleshooting
+## 🔧 API Endpoints
 
-### Common Issues
-- **Service binding failures**: Check that dependent MCPs are running
-- **Authentication errors**: Verify AUTH_MCP connection
-- **Tool execution timeouts**: Check MCP service health
-- **Cache issues**: Clear KV storage if needed
-
-### Debug Commands
-```bash
-# Check service bindings
-wrangler tail sports-proxy --format=pretty
-
-# Test MCP connections  
-curl http://localhost:8081/health
-
-# Clear cache
-wrangler kv:key delete --binding=CACHE_KV "cache:key"
+### Health Check
 ```
+GET /
+```
+Returns service status and configuration.
 
----
+### Basic Chat
+```
+POST /chat
+Content-Type: application/json
 
-For complete platform documentation, see [Platform Guide](../../docs/PLATFORM-GUIDE.md)
-
-### `/responses` - OpenAI Responses API (PRIMARY)
-Production endpoint with complete authentication: https://sports-proxy.gerrygugger.workers.dev/responses
-
-**Request:**
-```json
 {
-  "model": "gpt-4.1",
-  "input": "Get player stats for Mookie Betts this season",
-  "tools": [{"type": "function", "function": {"name": "get_player_stats"}}],
-  "stream": false
+  "message": "What are the latest NBA scores?",
+  "instructions": "You are a sports expert",
+  "tools": [{"type": "web_search"}],
+  "options": {
+    "temperature": 0.7,
+    "max_completion_tokens": 500
+  }
 }
 ```
 
-**Headers:** `Authorization: Bearer <jwt_token>`, `Content-Type: application/json`
+### Streaming Chat
+```
+POST /chat/stream
+Content-Type: application/json
 
-### `/health` - Service Status
-```json
-{"status": "healthy", "services": {"mcp": {...}, "auth": {...}, "cache": {...}}}
+{
+  "message": "Analyze the playoffs",
+  "instructions": "You are a sports analyst",
+  "tools": [{"type": "web_search"}, {"type": "code_interpreter"}]
+}
 ```
 
-### `/prefs` - User Preferences (NEW)
-- **GET /prefs?userId=<id>** - Retrieve preferences
-- **PATCH /prefs?userId=<id>** - Update preferences
+Returns Server-Sent Events stream with real-time response generation.
 
-### `/scripts` - User Scripts (NEW)  
-- **GET /scripts?userId=<id>** - List user scripts
-- **POST /scripts?userId=<id>** - Create script
+### Sports Query Optimization
+```
+POST /sports/query
+Content-Type: application/json
 
-## 🔧 Configuration
-
-### Environment Variables
-```bash
-# OpenAI & Model
-OPENAI_API_KEY=your-openai-api-key
-OPENAI_MODEL=gpt-4.1
-
-# Service Bindings (Cloudflare)
-AUTH_MCP=auth-mcp
-BASEBALL_STATS_MCP=baseball-stats-mcp
-HOCKEY_STATS_MCP=hockey-stats-mcp
-BASEBALL_FANTASY_MCP=baseball-fantasy-mcp
-
-# Caching & Auth
-CACHE_TTL_HOT=10
-CACHE_TTL_COLD=300
-REQUIRE_AUTH=true
-ENVIRONMENT=production
+{
+  "query": "Who are the top fantasy players this week?",
+  "type": "fantasy",
+  "options": {
+    "reasoning": {"effort": "medium"}
+  }
+}
 ```
 
-### Service Bindings (wrangler.toml)
-```toml
-[[services]]
-binding = "AUTH_MCP"
-service = "auth-mcp"
-environment = "production"
+### Conversation Management
+```
+POST /conversation/start
+{
+  "message": "I need fantasy advice",
+  "type": "fantasy"
+}
 
-[[services]]
-binding = "BASEBALL_STATS_MCP"
-service = "baseball-stats-mcp"
-environment = "production"
+POST /conversation/continue
+{
+  "message": "What about waiver pickups?",
+  "conversation_id": "resp_abc123"
+}
+```
+
+## 🏗 Key Improvements Over Chat Completions API
+
+| Feature | Chat Completions | Responses API | Implementation |
+|---------|------------------|---------------|----------------|
+| **State Management** | Manual history tracking | Server-side with `store: true` | ✅ Implemented |
+| **Response Format** | `choices[0].message.content` | `response.output_text` | ✅ Simplified access |
+| **Tools** | Custom implementation | Built-in tools available | ✅ Web search, code interpreter |
+| **Continuation** | Reconstruct full history | `previous_response_id` | ✅ Automatic state |
+| **Streaming** | Basic delta events | Semantic event types | ✅ Rich event handling |
+| **Error Handling** | Generic errors | Specific error subclasses | ✅ Enhanced error types |
+
+## 🎯 Sports-Specific Features
+
+### Entity Resolution Tools
+Automatically resolves naming discrepancies for accurate data retrieval:
+
+```javascript
+// Baseball entity resolution
+{
+  "type": "function",
+  "function": {
+    "name": "resolve_baseball_team",
+    "description": "Resolve team name to canonical MLB team information",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "name": {"type": "string", "description": "Team name, city, or abbreviation"}
+      }
+    }
+  }
+}
+
+// Hockey entity resolution
+{
+  "type": "function", 
+  "function": {
+    "name": "resolve_hockey_player",
+    "description": "Resolve player name to canonical NHL player information",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "name": {"type": "string", "description": "Player name or nickname"}
+      }
+    }
+  }
+}
+```
+
+### Tool Registry
+Dynamic tool registration based on sport detection:
+
+```javascript
+// Automatic tool selection
+const toolRegistry = new ToolRegistry(env);
+const tools = await toolRegistry.getToolsForSport('baseball');
+// Returns: [resolve_baseball_team, resolve_baseball_player, search_baseball_players]
+
+const tools = await toolRegistry.getToolsForSport('hockey');
+// Returns: [resolve_hockey_team, resolve_hockey_player, search_hockey_players]
+```
+
+### Resolution Confidence Scoring
+Multi-level matching with confidence scores:
+
+```javascript
+// Entity resolution with confidence
+{
+  "resolved": true,
+  "team": {
+    "id": 147,
+    "name": "New York Yankees",
+    "match_type": "exact",    // exact, alias, fuzzy
+    "confidence": 1.0         // 1.0, 0.9, 0.7
+  }
+}
+```
+
+## 🧠 Enhanced Memory Management System
+
+### Layered Prompt Architecture
+
+The enhanced prompt manager implements a sophisticated three-layer system:
+
+1. **General Layer**: Base sports assistant capabilities and tool usage guidelines
+2. **Sport-Specific Layer**: Specialized knowledge for baseball, hockey, football, or fantasy sports
+3. **User Memory Layer**: Personalized context including preferences, history, and patterns
+
+```javascript
+// Example: Generate layered instructions
+const instructions = await promptManager.getLayeredInstructions('baseball', {
+  userId: 'user123',
+  conversationType: 'fantasy',
+  includeUserMemory: true
+});
+```
+
+### User Memory Features
+
+#### Automatic Memory Extraction
+- **Team Preferences**: Automatically detects favorite teams from conversations
+- **Player Mentions**: Tracks frequently discussed players
+- **Query Patterns**: Learns user's common question types (fantasy, stats, scores)
+- **Sports Interests**: Identifies which sports the user engages with most
+
+#### Memory Persistence
+- **KV Storage**: Fast access for active user sessions
+- **D1 Database**: Long-term persistence and backup
+- **Intelligent Caching**: 30-minute cache with automatic refresh
+- **Size Management**: Automatically truncates to prevent token overflow
+
+#### Privacy & Isolation
+- **Per-User Isolation**: Complete separation of user memory data
+- **Configurable Retention**: Set custom retention policies
+- **Cache Control**: Selective clearing and management
+- **Zero Data Retention**: Compatible with ZDR requirements
+
+### Memory-Aware API Endpoints
+
+#### Enhanced Chat with Memory
+```javascript
+POST /chat
+{
+  "message": "Should I start Player X this week?",
+  "sport": "football",
+  "userId": "user123",
+  "conversationType": "fantasy"
+}
+```
+
+#### Memory Management
+```javascript
+// Update user memory
+POST /memory/update
+{
+  "userId": "user123",
+  "facts": ["User prefers aggressive draft strategies"]
+}
+
+// Clear user memory cache
+POST /memory/clear
+{
+  "userId": "user123",
+  "clearType": "cache"
+}
+
+// Get cache statistics
+GET /prompts/cache/stats
+```
+
+### Integration Patterns
+
+#### Basic Integration
+```javascript
+import { PromptManager } from './prompts/manager.js';
+
+const promptManager = new PromptManager(env);
+
+// Generate instructions with user context
+const instructions = await promptManager.generateInstructions('baseball', {
+  userId,
+  sport: 'baseball',
+  conversationType: 'fantasy',
+  includeUserMemory: true
+});
+
+// Use with Responses API
+const response = await api.createResponse(message, { instructions });
+
+// Update memory after conversation
+await promptManager.updateUserMemory(userId, conversationData);
+```
+
+#### Advanced Integration with Streaming
+```javascript
+// Streaming with memory updates
+const response = await api.createStreamingResponse(
+  message,
+  { instructions },
+  async (event) => {
+    if (event.type === 'response.completed') {
+      // Update memory after streaming completes
+      await promptManager.updateUserMemory(userId, conversationData);
+    }
+  }
+);
+```
+
+### Entity Resolution Benefits
+
+| Feature | Traditional | Entity Resolution |
+|---------|-------------|-------------------|
+| **Name Matching** | Exact only | ✅ Fuzzy + alias + exact |
+| **Data Accuracy** | Hit or miss | ✅ Canonical ID resolution |
+| **Multi-Sport Support** | Single sport | ✅ 4 dedicated resolvers |
+| **Alias Support** | None | ✅ Comprehensive alias database |
+| **Confidence Scoring** | None | ✅ Match quality indicators |
+| **Scalability** | Monolithic | ✅ Lightweight per-sport workers |
+
+### Configuration Options
+
+```javascript
+// Environment variables
+{
+  USER_MEMORY_KV: "User memory KV namespace",
+  SPORTS_PROMPTS_BUCKET: "R2 bucket for custom prompts", 
+  SPORTS_DB: "D1 database for persistent storage"
+}
+
+// Prompt manager options
+{
+  cacheTimeout: 5 * 60 * 1000,        // 5 minutes
+  userMemoryTimeout: 30 * 60 * 1000,  // 30 minutes
+  maxUserMemorySize: 5000              // Max characters
+}
 ```
 
 ## 🚀 Deployment
 
-1. **Setup:** `npm install && wrangler login`
-2. **Secrets:** `wrangler secret put OPENAI_API_KEY`
-3. **Resources:** `wrangler kv:namespace create "SPORTS_CACHE"`
-4. **Deploy:** `./deploy-v3.sh` (from root) or `npm run deploy`
-5. **Test:** `curl https://sports-proxy.gerrygugger.workers.dev/health`
-
-## 📊 Performance & Caching
-
-**Response Times (Production):**
-- Cache hit: <50ms (KV) / <100ms (R2)
-- Cache miss: 200-500ms (upstream + cache)
-- Authentication: <30ms (auth-mcp)
-- Service binding: <1ms (worker-to-worker)
-
-**Caching Strategy:**
-- Live games: 1s cache | Player stats: 60s | Team info: 5min | Fantasy: 30min
-
-## 🔐 Authentication
-
-**JWT Token:** `Authorization: Bearer <jwt_token_from_auth_mcp>`
-
-**Subscription Tiers:**
-- Free: 100 requests/day, basic sports only
-- Pro: 1,000 requests/day, fantasy integration
-- Elite: 10,000 requests/day, all features
-
-## 🎯 Native OpenAI Integration
-
-Point your OpenAI client directly to Sports Proxy:
-
-```python
-from openai import OpenAI
-
-client = OpenAI(
-    base_url="https://sports-proxy.gerrygugger.workers.dev",
-    api_key="your_jwt_token"
-)
-
-response = client.responses.create(
-    model="gpt-4.1",
-    input="Get Yankees team info and standings",
-    tools=[{"type": "function", "function": {"name": "get_team_info"}}]
-)
-```
-
-## 🧪 Testing
+Deploy to Cloudflare Workers:
 
 ```bash
-# Health check
-curl https://sports-proxy.gerrygugger.workers.dev/health
+# Set environment variables
+wrangler secret put OPENAI_API_KEY
 
-# With authentication
-curl -X POST https://sports-proxy.gerrygugger.workers.dev/responses \
-  -H "Authorization: Bearer <jwt_token>" \
-  -H "Content-Type: application/json" \
-  -d '{"model":"gpt-4.1","input":"Get Yankees info"}'
+# Deploy
+npm run deploy
 ```
 
-## 🔄 Migration from v2.x
+## 📊 Performance Benefits
 
-**Breaking Changes:**
-- ❌ API key auth → ✅ JWT token auth
-- ❌ MLB only → ✅ Multi-sport + fantasy
-- ❌ No user system → ✅ Complete user management
+### Built-in Retries
+- Automatic retry logic with exponential backoff
+- No custom retry implementation needed
+- Handles rate limits and temporary failures
 
-**Migration:** Replace API keys with JWT tokens, update base URL, leverage new user features.
+### Server-Side State
+- Reduced payload sizes (no message history)
+- Faster response times
+- Lower bandwidth usage
 
-## 🌟 Why Sports Platform v3.2?
+### Tool Integration
+- Native web search ($25-50 per 1000 queries)
+- Built-in code interpreter ($0.03 per session)
+- File search capabilities ($2.50 per 1000 queries)
 
-- 🔐 Complete JWT authentication with Stripe billing
-- 🚀 Multi-sport intelligence (Baseball + Hockey + Fantasy)
-- 📊 Advanced analytics and user behavior tracking
-- 💡 Optimized for OpenAI gpt-4.1
-- 🔄 Automatic conversation state management
-- 📡 Real-time streaming with semantic events
-- 🛠️ Native function calling with entity resolution
-- 🏆 Complete ESPN and Yahoo fantasy integration
-- 💾 Smart multi-layer caching with dynamic TTLs
+## ⚠ Migration Notes
 
-**Sports Platform v3.2 represents the production-ready future of sports data integration with AI.**
+**IMPORTANT**: This implementation uses the Responses API exclusively with sport-specific entity resolution. The previous monolithic approach has been replaced with lightweight resolver workers.
+
+### Why Entity Resolution Architecture is Superior:
+1. **Accurate Data Retrieval**: Resolve naming discrepancies before API calls
+2. **Lightweight Workers**: Dedicated resolver per sport (≤3 tools exposed)
+3. **Database-Backed Resolution**: Comprehensive alias and nickname support
+4. **Confidence Scoring**: Quality indicators for fuzzy matches
+5. **Scalable Design**: Add new sports without affecting existing resolvers
+6. **Future-Proof**: Compatible with OpenAI Responses API specification
+
+## 🔐 Environment Variables
+
+```bash
+OPENAI_API_KEY=your_openai_api_key_here
+```
+
+## 📝 License
+
+MIT License - See LICENSE file for details.
+
+## 🏗️ Resolver Worker Architecture
+
+### Baseball Resolver MCP
+- **Database**: D1 SQLite with teams, players, aliases, stats
+- **Data**: Full MLB roster with 30 teams + star players
+- **Features**: Exact/alias/fuzzy matching, confidence scoring
+- **Endpoints**: `/resolve/team`, `/resolve/player`, `/search/teams`
+
+### Hockey Resolver MCP  
+- **Database**: D1 SQLite with NHL structure
+- **Data**: 32 NHL teams + sample players (placeholder)
+- **Features**: Same resolution logic as baseball
+- **Endpoints**: Same API pattern as baseball resolver
+
+### Football & Basketball Resolvers
+- **Status**: Placeholder structure ready for data population
+- **Teams**: NFL (32 teams) and NBA (30 teams) complete
+- **Players**: Sample star players for testing
+- **Architecture**: Identical pattern to baseball/hockey
+
+### Integration Pattern
+```javascript
+// Each resolver exposes OpenAI-compatible tools
+GET /openai-tools.json
+// Returns tool schemas for LLM integration
+
+POST /resolve/team
+{"name": "Yankees"}
+// Returns resolved team with confidence score
+
+POST /resolve/player  
+{"name": "Judge", "team": "Yankees"}
+// Returns resolved player with team context
+```
+
+---
+
+This implementation represents a complete rewrite with sport-specific entity resolution, providing the most accurate and scalable approach to building AI-powered sports applications.

@@ -1,0 +1,15 @@
+name = "basketball-resolver-mcp"
+main = "src/index.js"
+compatibility_date = "2024-12-18"
+
+[env.production]
+name = "basketball-resolver-mcp"
+
+[[d1_databases]]
+binding = "BASKETBALL_DB"
+database_name = "basketball_resolver_db"
+database_id = "basketball-resolver-db-dev"
+
+[vars]
+ENVIRONMENT = "development"
+LOG_LEVEL = "info"

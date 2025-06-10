@@ -13,6 +13,9 @@
  */
 
 const { spawn } = require('child_process');
+
+// Default model configuration
+const DEFAULT_MODEL = 'gpt-4.1-mini';
 const fs = require('fs');
 const path = require('path');
 
@@ -226,7 +229,7 @@ class SportsTestRunner {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          model: 'gpt-4.1',
+          model: DEFAULT_MODEL,
           input: 'Test OpenAI Responses API compliance',
           userId: 'test-runner',
           sport: 'baseball'
@@ -434,7 +437,7 @@ class SportsTestRunner {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          model: 'gpt-4.1',
+          model: DEFAULT_MODEL,
           input: 'Get Yankees team info',
           userId: 'test-context-user',
           sport: 'baseball'
@@ -449,7 +452,7 @@ class SportsTestRunner {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          model: 'gpt-4.1',
+          model: DEFAULT_MODEL,
           input: 'Now get their standings',
           userId: 'test-context-user',
           sport: 'baseball',
@@ -565,7 +568,7 @@ class SportsTestRunner {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          model: 'gpt-4.1',
+          model: DEFAULT_MODEL,
           input: 'Quick test',
           userId: 'perf-test'
         })

@@ -3,6 +3,9 @@
  * Common mocks, configurations, and helper functions
  */
 
+// Import default model configuration
+const DEFAULT_MODEL = 'gpt-4.1-mini';
+
 // Test configuration constants
 const TEST_CONFIG = {
   WORKER_URL: 'http://localhost:8787',
@@ -82,7 +85,7 @@ const TEST_DATA = {
   },
   requests: {
     basic: {
-      model: 'gpt-4.1',
+      model: DEFAULT_MODEL,
       input: 'Get team info for the Yankees',
       tools: [
         {
@@ -95,7 +98,7 @@ const TEST_DATA = {
       ]
     },
     complex: {
-      model: 'gpt-4.1',
+      model: DEFAULT_MODEL,
       input: 'Get the roster for the Yankees and tell me about Aaron Judge',
       tools: [
         {

@@ -1,452 +1,374 @@
 /**
- * Sports Proxy - Cloudflare Worker
- * OpenAI Responses API native MCP orchestrator with advanced caching and streaming
+ * Sports Proxy Worker - Main Entry Point
+ * 
+ * Cloudflare Worker implementing the OpenAI Responses API for sports-related queries
+ * with enhanced memory management, layered prompts, and advanced caching.
+ * 
+ * Features:
+ * - Official OpenAI Responses API with gpt-4.1-mini
+ * - Enhanced prompt management with user memory
+ * - Server-side state management with store option
+ * - Built-in web search and analytics tools
+ * - Advanced error handling and retries
+ * - Sports-specific query optimization
+ * - User memory persistence and context injection
  */
 
-const { ResponsesAPIOrchestrator } = require('./mcp/orchestrator');
-const { CacheManager } = require('./cache/manager');
+import { SportsResponsesAPI, SportsResponsesUtils, DEFAULT_MODEL } from './openai/responsesapi.js';
+import { PromptManager } from './prompts/manager.js';
+import { ToolRegistry } from './registry/toolRegistry.js';
 
 /**
- * CORS headers for all responses
+ * Main Worker Handler
  */
-function getCorsHeaders() {
-  return {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization",
-    "Access-Control-Max-Age": "86400"
-  };
-}
+export default {
+  async fetch(request, env) {
+    try {
+      // Handle CORS preflight
+      if (request.method === 'OPTIONS') {
+        return new Response(null, {
+          status: 200,
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-API-Key, X-User-ID',
+            'Access-Control-Max-Age': '86400',
+          }
+        });
+      }
+
+      // Initialize components
+      const apiKey = env.OPENAI_API_KEY;
+      if (!apiKey) {
+        return jsonResponse({ error: 'OpenAI API key not configured' }, 500);
+      }
+
+      const sportsAPI = new SportsResponsesAPI(apiKey, {
+        timeout: 30000,
+        maxRetries: 3
+      });
+
+      const promptManager = new PromptManager(env);
+      const toolRegistry = new ToolRegistry(env, null); // cacheManager not needed for direct KV access
+
+      // Route handling
+      const url = new URL(request.url);
+      const path = url.pathname;
+
+      switch (path) {
+        case '/':
+          return handleHealthCheck();
+        
+        case '/responses':
+          return handleResponsesAPI(request, sportsAPI, promptManager, toolRegistry);
+        
+        default:
+          return jsonResponse({ error: 'Endpoint not found' }, 404);
+      }
+
+    } catch (error) {
+      console.error('Worker error:', error);
+      return jsonResponse({ 
+        error: 'Internal server error',
+        message: error.message,
+        timestamp: new Date().toISOString()
+      }, 500);
+    }
+  }
+};
 
 /**
- * Handle CORS preflight requests
+ * Health check endpoint with memory management status
  */
-function handleOptions() {
-  return new Response(null, {
-    status: 204,
-    headers: getCorsHeaders()
+function handleHealthCheck() {
+  return jsonResponse({
+    status: 'healthy',
+    service: 'Sports Proxy Worker',
+    version: '2.1.0',
+    api: 'OpenAI Responses API',
+    model: DEFAULT_MODEL,
+    features: [
+      'Enhanced Prompt Management',
+      'User Memory Persistence',
+      'Layered Instructions',
+      'Server-side State Management',
+      'Multi-sport Support',
+      'Real-time Tools Integration'
+    ],
+    memory_management: {
+      enabled: true,
+      layers: ['general', 'sport-specific', 'user-memory'],
+      cache_timeout: '5 minutes',
+      user_memory_timeout: '30 minutes'
+    },
+    timestamp: new Date().toISOString()
   });
 }
 
-/**
- * Create error response
- */
-function createErrorResponse(message, status = 400) {
-  return new Response(
-    JSON.stringify({ error: message }),
-    {
-      status,
-      headers: {
-        "Content-Type": "application/json",
-        ...getCorsHeaders()
-      }
-    }
-  );
-}
+
+
+
+
+
+
+
 
 /**
- * Handle OpenAI Responses API requests natively
+ * Handle OpenAI Responses API endpoint
+ * Implements the official OpenAI Responses API format
  */
-async function handleResponsesAPI(request, env) {
+async function handleResponsesAPI(request, sportsAPI, promptManager, toolRegistry) {
   try {
     const body = await request.json();
-    const orchestrator = new ResponsesAPIOrchestrator(env);
-    
-    // Handle the Responses API request format
-    const { model = "gpt-4.1", input, tools, previous_response_id, instructions, stream = false, memories } = body;
-    
-    // Process the request through our orchestrator
-    const result = await orchestrator.processResponsesAPIRequest({
-      model,
+    const { 
+      model = 'gpt-4.1-mini',
       input,
+      instructions,
       tools,
       previous_response_id,
-      instructions,
-      stream,
+      stream = false,
+      temperature,
+      max_output_tokens,
+      store = true,
+      // Sports-specific context (these won't be passed to OpenAI)
+      sport,
+      userId,
+      conversationType = 'general',
       memories
-    });
-    
-    if (stream) {
-      return new Response(result.stream, {
-        headers: {
-          "Content-Type": "text/event-stream",
-          "Cache-Control": "no-cache",
-          "Connection": "keep-alive",
-          ...getCorsHeaders()
+    } = body;
+
+    if (!input) {
+      return jsonResponse({ error: 'Input is required' }, 400);
+    }
+
+    // Build context for sports-specific optimization
+    const context = {
+      userId,
+      sport: sport || 'general',
+      conversationType,
+      includeUserMemory: !!userId,
+      sessionId: request.headers.get('x-session-id'),
+    };
+
+    // Generate enhanced instructions if not provided
+    let finalInstructions = instructions;
+    if (!instructions) {
+      finalInstructions = await promptManager.generateInstructions(sport || 'general', context);
+    }
+
+    // Process memories if provided (sports-proxy specific feature)
+    if (memories && Array.isArray(memories)) {
+      for (const memory of memories) {
+        if (memory.key && memory.value && userId) {
+          await promptManager.updateUserMemory(userId, { [memory.key]: memory.value });
         }
+      }
+    }
+
+    // Fetch MCP tools for the sport if no tools provided
+    let finalTools = tools;
+    if (!finalTools && sport && sport !== 'general') {
+      try {
+        finalTools = await toolRegistry.getToolsForSport(sport);
+        console.log(`Fetched ${finalTools?.length || 0} tools for sport: ${sport}`);
+      } catch (error) {
+        console.error('Failed to fetch MCP tools:', error);
+        finalTools = [];
+      }
+    }
+
+    // Prepare options for the API call (only OpenAI-compatible parameters)
+    const apiOptions = {
+      model,
+      instructions: finalInstructions,
+      tools: finalTools,
+      previousResponseId: previous_response_id,
+      temperature,
+      max_output_tokens,
+      store
+    };
+
+    if (stream) {
+      // For streaming, we need to return Server-Sent Events format
+      return handleStreamingResponsesAPI(request, sportsAPI, promptManager, toolRegistry, body);
+    } else {
+      // Handle non-streaming response
+      const response = await sportsAPI.createResponse(input, apiOptions);
+
+      // Update user memory in background if userId provided
+      if (userId) {
+        const conversationData = {
+          messages: [
+            { role: 'user', content: typeof input === 'string' ? input : JSON.stringify(input) },
+            { role: 'assistant', content: response.text }
+          ]
+        };
+        
+        promptManager.updateUserMemory(userId, conversationData).catch(err => {
+          console.error('Background memory update failed:', err);
+        });
+      }
+
+      // Return response in OpenAI Responses API format
+      return jsonResponse({
+        id: response.id,
+        object: 'response',
+        created_at: response.created_at,
+        model: response.model,
+        output: response.output,
+        output_text: response.text, // Helper field for easy access
+        usage: response.usage
       });
     }
-    
-    return new Response(JSON.stringify(result), {
-      headers: { "Content-Type": "application/json", ...getCorsHeaders() }
-    });
-    
+
   } catch (error) {
-    return createErrorResponse(`Responses API error: ${error.message}`, 500);
+    console.error('Responses API error:', error);
+    return jsonResponse({ 
+      error: 'Responses API request failed',
+      message: error.message,
+      type: error.constructor.name
+    }, 500);
   }
 }
 
 /**
- * Handle legacy MCP protocol requests (deprecated - use Responses API)
+ * Handle streaming Responses API requests
  */
-async function handleLegacyMCP(request, env) {
-  try {
-    const body = await request.json();
-    const orchestrator = new ResponsesAPIOrchestrator(env);
-    const sport = body.sport || request.headers.get('X-Sport') || 'sport-null'; // Extract sport
-    
-    switch (body.method) {
-      case 'tools/list':
-        return new Response(JSON.stringify(await orchestrator.listTools(sport)), { // Pass sport
-          headers: { "Content-Type": "application/json", ...getCorsHeaders() }
-        });
-        
-      case 'tools/call':
-        const cache = new CacheManager(env);
-        const { name, arguments: args } = body.params;
-        
-        // Check cache first
-        const cached = await cache.get(name, args);
-        if (cached) {
-          return new Response(JSON.stringify({
-            content: [{
-              type: "text",
-              text: JSON.stringify(cached.data, null, 2)
-            }],
-            _meta: {
-              source: cached.source,
-              age: cached.age
-            }
-          }), {
-            headers: { "Content-Type": "application/json", ...getCorsHeaders() }
-          });
-        }
-        
-        // Call tool and cache result
-        const result = await orchestrator.callTool(name, args);
-        
-        if (!result.isError) {
-          const ttl = cache.getSmartTTL(name, args);
-          await cache.set(name, args, JSON.parse(result.content[0].text));
-        }
-        
-        return new Response(JSON.stringify(result), {
-          headers: { "Content-Type": "application/json", ...getCorsHeaders() }
-        });
-        
-      default:
-        return createErrorResponse(`Unknown MCP method: ${body.method}`);
-    }
-  } catch (error) {
-    return createErrorResponse(`Legacy MCP error: ${error.message}`, 500);
-  }
-}
+async function handleStreamingResponsesAPI(request, sportsAPI, promptManager, toolRegistry, body) {
+  const { 
+    model = 'gpt-4.1-mini',
+    input,
+    instructions,
+    tools,
+    previous_response_id,
+    sport,
+    userId,
+    conversationType = 'general'
+  } = body;
 
-/**
- * Handle SSE (Server-Sent Events) streaming
- */
-async function handleSSE(request, env) {
-  const url = new URL(request.url);
-  const searchParams = url.searchParams;
-  
-  // Parse query parameters for the request
-  const tool = searchParams.get('tool');
-  const argsParam = searchParams.get('args');
-  
-  if (!tool) {
-    return createErrorResponse('Missing tool parameter');
+  // Build context
+  const context = {
+    userId,
+    sport: sport || 'general',
+    conversationType,
+    includeUserMemory: !!userId,
+    sessionId: request.headers.get('x-session-id'),
+  };
+
+  // Generate instructions if not provided
+  let finalInstructions = instructions;
+  if (!instructions) {
+    finalInstructions = await promptManager.generateInstructions(sport || 'general', context);
   }
-  
-  let args = {};
-  if (argsParam) {
+
+  // Fetch MCP tools for the sport if no tools provided
+  let finalTools = tools;
+  if (!finalTools && sport && sport !== 'general') {
     try {
-      args = JSON.parse(argsParam);
+      finalTools = await toolRegistry.getToolsForSport(sport);
+      console.log(`Fetched ${finalTools?.length || 0} tools for streaming sport: ${sport}`);
     } catch (error) {
-      return createErrorResponse('Invalid args parameter');
+      console.error('Failed to fetch MCP tools for streaming:', error);
+      finalTools = [];
     }
   }
-  
-  // Create SSE stream
+
+  const apiOptions = {
+    model,
+    instructions: finalInstructions,
+    tools: finalTools,
+    previousResponseId: previous_response_id
+  };
+
+  // Create a ReadableStream for Server-Sent Events
   const { readable, writable } = new TransformStream();
   const writer = writable.getWriter();
-  
-  // Start processing in background
-  processSSERequest(tool, args, writer, env).catch(error => {
-    console.error('SSE processing error:', error);
-    writer.close();
-  });
-  
+  const encoder = new TextEncoder();
+
+  // Start the streaming response in the background
+  (async () => {
+    try {
+      let collectedContent = '';
+      let responseId = null;
+
+      await sportsAPI.createStreamingResponse(input, apiOptions, async (event) => {
+        if (event.type === 'response.created') {
+          responseId = event.response.id;
+          await writer.write(encoder.encode(`data: ${JSON.stringify({
+            response_created: true,
+            id: responseId
+          })}\n\n`));
+        } else if (event.type === 'response.output_text.delta') {
+          const content = event.delta;
+          collectedContent += content;
+          await writer.write(encoder.encode(`data: ${JSON.stringify({
+            text: content
+          })}\n\n`));
+        } else if (event.type === 'response.completed') {
+          await writer.write(encoder.encode(`data: ${JSON.stringify({
+            response_completed: true
+          })}\n\n`));
+        } else if (event.type === 'response.error') {
+          await writer.write(encoder.encode(`data: ${JSON.stringify({
+            error: event.error
+          })}\n\n`));
+        }
+      });
+
+      // Update user memory in background
+      if (userId && collectedContent) {
+        const conversationData = {
+          messages: [
+            { role: 'user', content: typeof input === 'string' ? input : JSON.stringify(input) },
+            { role: 'assistant', content: collectedContent }
+          ]
+        };
+        
+        promptManager.updateUserMemory(userId, conversationData).catch(err => {
+          console.error('Background memory update failed:', err);
+        });
+      }
+
+      await writer.write(encoder.encode('data: [DONE]\n\n'));
+    } catch (error) {
+      await writer.write(encoder.encode(`data: ${JSON.stringify({
+        error: error.message
+      })}\n\n`));
+    } finally {
+      await writer.close();
+    }
+  })();
+
   return new Response(readable, {
     headers: {
-      "Content-Type": "text/event-stream",
-      "Cache-Control": "no-cache",
-      "Connection": "keep-alive",
-      ...getCorsHeaders()
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive',
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-API-Key',
     }
   });
 }
 
 /**
- * Process SSE request in background
+ * Helper function to create JSON responses with CORS headers
  */
-async function processSSERequest(tool, args, writer, env) {
-  const encoder = new TextEncoder();
-  
-  try {
-    // Send initial connection event
-    await writer.write(encoder.encode(`event: connected\ndata: {"status":"connected","tool":"${tool}"}\n\n`));
-    
-    const orchestrator = new ResponsesAPIOrchestrator(env);
-    const cache = new CacheManager(env);
-    
-    // Check cache first
-    const cached = await cache.get(tool, args);
-    if (cached) {
-      await writer.write(encoder.encode(`event: data\ndata: ${JSON.stringify({
-        data: cached.data,
-        meta: { source: cached.source, age: cached.age }
-      })}\n\n`));
-      
-      await writer.write(encoder.encode(`event: complete\ndata: {"status":"complete","source":"cache"}\n\n`));
-      await writer.close();
-      return;
+function jsonResponse(data, status = 200) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: {
+      'Content-Type': 'application/json',
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-API-Key',
     }
-    
-    // Send processing event
-    await writer.write(encoder.encode(`event: processing\ndata: {"status":"processing","tool":"${tool}"}\n\n`));
-    
-    // Call tool
-    const result = await orchestrator.callTool(tool, args);
-    
-    if (result.isError) {
-      await writer.write(encoder.encode(`event: error\ndata: ${JSON.stringify({
-        error: result.content[0].text
-      })}\n\n`));
-    } else {
-      const data = JSON.parse(result.content[0].text);
-      
-      // Cache result
-      const ttl = cache.getSmartTTL(tool, args);
-      await cache.set(tool, args, data);
-      
-      // Send data
-      await writer.write(encoder.encode(`event: data\ndata: ${JSON.stringify({
-        data: data,
-        meta: { source: 'live', ttl: ttl }
-      })}\n\n`));
-    }
-    
-    // Send completion event
-    await writer.write(encoder.encode(`event: complete\ndata: {"status":"complete","source":"live"}\n\n`));
-    
-  } catch (error) {
-    await writer.write(encoder.encode(`event: error\ndata: ${JSON.stringify({
-      error: error.message
-    })}\n\n`));
-  } finally {
-    await writer.close();
-  }
-}
-
-/**
- * Handle Streamable HTTP requests
- */
-async function handleStreamableHTTP(request, env) {
-  try {
-    const body = await request.json();
-    const { tool, args } = body;
-    
-    if (!tool) {
-      return createErrorResponse('Missing tool parameter');
-    }
-    
-    const orchestrator = new ResponsesAPIOrchestrator(env);
-    const cache = new CacheManager(env);
-    
-    // Check cache first
-    const cached = await cache.get(tool, args || {});
-    if (cached) {
-      return new Response(JSON.stringify({
-        data: cached.data,
-        meta: { 
-          source: cached.source, 
-          age: cached.age,
-          cached: true
-        }
-      }), {
-        headers: { "Content-Type": "application/json", ...getCorsHeaders() }
-      });
-    }
-    
-    // Call tool
-    const result = await orchestrator.callTool(tool, args || {});
-    
-    if (result.isError) {
-      return createErrorResponse(result.content[0].text, 500);
-    }
-    
-    const data = JSON.parse(result.content[0].text);
-    
-    // Cache result
-    const ttl = cache.getSmartTTL(tool, args || {});
-    await cache.set(tool, args || {}, data);
-    
-    return new Response(JSON.stringify({
-      data: data,
-      meta: { 
-        source: 'live', 
-        ttl: ttl,
-        cached: false
-      }
-    }), {
-      headers: { "Content-Type": "application/json", ...getCorsHeaders() }
-    });
-    
-  } catch (error) {
-    return createErrorResponse(`Streamable HTTP error: ${error.message}`, 500);
-  }
-}
-
-/**
- * Handle health check
- */
-async function handleHealth(env) {
-  const orchestrator = new ResponsesAPIOrchestrator(env);
-  const cache = new CacheManager(env);
-  
-  const [mcpHealth, cacheStats] = await Promise.all([
-    orchestrator.healthCheck(),
-    cache.getStats()
-  ]);
-  
-  return new Response(JSON.stringify({
-    status: 'healthy',
-    timestamp: new Date().toISOString(),
-    services: {
-      mcp: mcpHealth,
-      cache: cacheStats
-    }
-  }), {
-    headers: { "Content-Type": "application/json", ...getCorsHeaders() }
   });
 }
 
 /**
- * Main request handler
+ * Export for testing
  */
-async function handleRequest(request, env, ctx) {
-  const url = new URL(request.url);
-  const path = url.pathname;
-  
-  // Handle CORS preflight
-  if (request.method === "OPTIONS") {
-    return handleOptions();
-  }
-  
-  // Route requests
-  switch (path) {
-    case '/responses':
-      // OpenAI Responses API native endpoint (PRIMARY)
-      return handleResponsesAPI(request, env);
-      
-    case '/mcp':
-      // Legacy MCP protocol endpoint (DEPRECATED - use /responses)
-      return handleLegacyMCP(request, env);
-      
-    case '/sse':
-      // Server-Sent Events endpoint
-      return handleSSE(request, env);
-      
-    case '/stream':
-      // Streamable HTTP endpoint
-      return handleStreamableHTTP(request, env);
-      
-    case '/health':
-      // Health check endpoint
-      return handleHealth(env);
-      
-    case '/':
-      // Root endpoint - basic info
-      return new Response(JSON.stringify({
-        name: 'Sports Proxy',
-        version: '2.0.0',
-        api: 'OpenAI Responses API Native',
-        endpoints: {
-          responses: '/responses (PRIMARY - OpenAI Responses API)',
-          mcp: '/mcp (DEPRECATED - use /responses)',
-          sse: '/sse (Server-Sent Events)',
-          stream: '/stream (Streamable HTTP)',
-          health: '/health (Health Check)'
-        },
-        description: 'OpenAI Responses API native orchestrator for sports data with advanced caching and streaming',
-        migration: 'All new integrations should use /responses endpoint with OpenAI Responses API format'
-      }), {
-        headers: { "Content-Type": "application/json", ...getCorsHeaders() }
-      });
-      
-    default:
-      return new Response('Not Found', { 
-        status: 404,
-        headers: getCorsHeaders()
-      });
-  }
-}
-
-/**
- * RateLimiter Durable Object for rate limiting and coordination
- */
-export class RateLimiter {
-  constructor(state, env) {
-    this.state = state;
-    this.env = env;
-  }
-
-  async fetch(request) {
-    // Simple rate limiting implementation
-    const url = new URL(request.url);
-    const key = url.searchParams.get('key') || 'default';
-    const limit = parseInt(url.searchParams.get('limit') || '100');
-    const window = parseInt(url.searchParams.get('window') || '60'); // seconds
-
-    const currentTime = Math.floor(Date.now() / 1000);
-    const windowStart = currentTime - window;
-
-    // Get current count
-    const currentCount = await this.state.storage.get(`count:${key}`) || 0;
-    const lastReset = await this.state.storage.get(`reset:${key}`) || 0;
-
-    // Reset if window expired
-    if (lastReset < windowStart) {
-      await this.state.storage.put(`count:${key}`, 1);
-      await this.state.storage.put(`reset:${key}`, currentTime);
-      return new Response(JSON.stringify({ allowed: true, remaining: limit - 1 }), {
-        headers: { "Content-Type": "application/json" }
-      });
-    }
-
-    // Check limit
-    if (currentCount >= limit) {
-      return new Response(JSON.stringify({ allowed: false, remaining: 0 }), {
-        status: 429,
-        headers: { "Content-Type": "application/json" }
-      });
-    }
-
-    // Increment counter
-    await this.state.storage.put(`count:${key}`, currentCount + 1);
-    
-    return new Response(JSON.stringify({ 
-      allowed: true, 
-      remaining: limit - currentCount - 1 
-    }), {
-      headers: { "Content-Type": "application/json" }
-    });
-  }
-}
-
-// Export the worker
-export default {
-  async fetch(request, env, ctx) {
-    return handleRequest(request, env, ctx);
-  }
+export {
+  handleHealthCheck,
+  handleResponsesAPI,
+  handleStreamingResponsesAPI
 };

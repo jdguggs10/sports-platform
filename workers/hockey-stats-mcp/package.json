@@ -1,14 +1,20 @@
 {
   "name": "hockey-stats-mcp",
-  "version": "3.0.0",
-  "description": "Hockey Stats MCP - v3 Meta-Tool Façade with direct NHL API integration",
+  "version": "3.1.0",
+  "description": "Hockey Stats MCP - OpenAI Responses API compatible tool provider",
   "main": "src/index.js",
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
     "tail": "wrangler tail"
   },
-  "keywords": ["hockey", "nhl", "stats", "cloudflare", "workers", "mcp"],
+  "keywords": ["hockey", "nhl", "stats", "openai", "tools", "cloudflare", "workers", "mcp"],
   "author": "Sports Platform v3",
-  "license": "MIT"
+  "license": "MIT",
+  "devDependencies": {
+    "wrangler": "^4.19.1"
+  }
 }

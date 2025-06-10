@@ -2,13 +2,14 @@
 
 ## 🎯 Platform Overview
 
-The Sports Platform v3.2 is a production-ready microservices architecture providing comprehensive sports intelligence, fantasy league management, and user analytics through OpenAI's Responses API integration.
+The Sports Platform v3.2 is a production-ready microservices architecture with 4 sport-specific entity resolvers providing comprehensive sports intelligence, fantasy league management, and user analytics through OpenAI's Responses API integration.
 
 ### **Core Value Proposition**
+- **Entity Resolution**: Lightweight LLM scripts resolve naming discrepancies across 4 sports
 - **Unified Sports Data**: Real-time access to baseball and hockey statistics
-- **Fantasy Management**: Multi-provider ESPN/Yahoo integration
+- **Database-Backed Resolution**: D1 SQLite with comprehensive alias and nickname support
 - **Intelligent Analytics**: User behavior insights and business intelligence
-- **Scalable Architecture**: Cloudflare Workers with D1 database
+- **Scalable Architecture**: Cloudflare Workers with sport-specific resolvers
 - **Premium Experience**: Subscription-based advanced features
 
 ---
@@ -115,13 +116,18 @@ Production Deployment:
 │   ├── Advanced Caching (KV + R2)
 │   └── User Analytics Tracking
 │
-├── Baseball Services
-│   ├── Stats MCP (pybaseball integration)
-│   ├── Fantasy MCP (ESPN API integration)
-│   └── News MCP (ESPN news feeds)
+├── Entity Resolvers (New Architecture)
+│   ├── Baseball Resolver MCP (Full MLB data with aliases)
+│   ├── Hockey Resolver MCP (NHL structure with placeholders)
+│   ├── Football Resolver MCP (NFL placeholder structure)
+│   └── Basketball Resolver MCP (NBA placeholder structure)
+│
+├── Legacy Services (Retained for Compatibility)
+│   ├── Baseball Stats MCP (pybaseball integration)
+│   ├── Baseball Fantasy MCP (ESPN API integration)
+│   └── Hockey Stats MCP (NHL API integration)
 │
 └── Hockey Services
-    ├── Stats MCP (NHL API integration)
     └── Fantasy MCP (Yahoo API integration)
 ```
 
@@ -129,13 +135,14 @@ Production Deployment:
 
 - **✅ OpenAI Responses API Native**: Full compliance with OpenAI's latest API specification
 - **🔐 Production Authentication**: Complete user management with JWT, Stripe billing, encrypted credentials
-- **🎯 Sport-scoped tooling**: Intelligent sport detection exposes only relevant tools (≤3 per request)
+- **🎯 4 Sport-Specific Resolvers**: Lightweight LLM scripts handle entity resolution (≤3 tools per request)
+- **📊 Database-Backed Resolution**: D1 SQLite with comprehensive alias/nickname support
 - **⚡ Zero-latency communication**: Cloudflare Service Bindings for <1ms worker-to-worker calls
-- **🔧 Meta-tool façades**: MCPs expose unified interfaces with approve/enrich flow patterns
-- **🧠 Intelligent entity resolution**: Automatic team/player name → ID resolution
+- **🔧 Resolver Pattern**: Each sport has dedicated entity resolution with confidence scoring
+- **🧠 Intelligent entity resolution**: "Yankees" → ID 147, "Judge" → ID 592450
 - **💬 Conversation context**: Memory persistence and response chaining with `previous_response_id`
 - **📡 Streaming support**: Real-time Server-Sent Events adhering to OpenAI event types
-- **Advanced Caching**: Multi-layer KV + R2 system with dynamic TTLs based on data type
+- **📈 Confidence Scoring**: Exact/alias/fuzzy match quality indicators
 
 ### **Data Architecture Evolution**
 
@@ -173,10 +180,14 @@ Production Deployment:
 |---------|-----|--------|----------|
 | **Auth MCP** | https://auth-mcp.gerrygugger.workers.dev | ✅ Live | User auth, subscriptions, analytics |
 | **Sports Proxy** | https://sports-proxy.gerrygugger.workers.dev | ✅ Live | API orchestration, caching |
-| **Baseball Stats** | https://baseball-stats-mcp.gerrygugger.workers.dev | ✅ Live | pybaseball integration |
-| **Baseball Fantasy** | https://baseball-fantasy-mcp.gerrygugger.workers.dev | ✅ Live | ESPN API integration |
-| **Hockey Stats** | https://hockey-stats-mcp.gerrygugger.workers.dev | ✅ Live | NHL API integration |
-| **Hockey Fantasy** | https://hockey-fantasy-mcp.gerrygugger.workers.dev | ✅ Live | Yahoo API integration |
+| **Baseball Resolver** | baseball-resolver-mcp.gerrygugger.workers.dev | 🔄 New | Entity resolution with full MLB data |
+| **Hockey Resolver** | hockey-resolver-mcp.gerrygugger.workers.dev | 🔄 New | Entity resolution with NHL structure |
+| **Football Resolver** | football-resolver-mcp.gerrygugger.workers.dev | 🔄 New | Entity resolution (placeholder) |
+| **Basketball Resolver** | basketball-resolver-mcp.gerrygugger.workers.dev | 🔄 New | Entity resolution (placeholder) |
+| **Baseball Stats** | https://baseball-stats-mcp.gerrygugger.workers.dev | ✅ Legacy | pybaseball integration |
+| **Baseball Fantasy** | https://baseball-fantasy-mcp.gerrygugger.workers.dev | ✅ Legacy | ESPN API integration |
+| **Hockey Stats** | https://hockey-stats-mcp.gerrygugger.workers.dev | ✅ Legacy | NHL API integration |
+| **Hockey Fantasy** | https://hockey-fantasy-mcp.gerrygugger.workers.dev | ✅ Legacy | Yahoo API integration |
 
 ### **Service Health Verification**
 ```bash

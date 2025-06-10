@@ -1,0 +1,16 @@
+name = "baseball-resolver-mcp"
+main = "src/index.js"
+compatibility_date = "2024-12-18"
+
+[env.production]
+name = "baseball-resolver-mcp"
+
+[[d1_databases]]
+binding = "BASEBALL_DB"
+database_name = "baseball-resolver-db"
+database_id = "b576dc0e-1e40-4997-b0ff-0e84cfc78aa8"
+
+[vars]
+ENVIRONMENT = "development"
+LOG_LEVEL = "info"
+

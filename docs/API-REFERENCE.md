@@ -1,6 +1,6 @@
 # Sports Platform API Reference
 
-Complete API documentation for Sports Platform v3.2 - Production-ready endpoints and integration guides.
+Complete API documentation for Sports Platform v3.2 - Production-ready endpoints with 4 sport-specific entity resolvers and integration guides.
 
 ## 🚀 Base URLs
 
@@ -170,71 +170,218 @@ Save a new script/macro.
 }
 ```
 
-## 🏀 Sport-Specific Tool Reference
+## 🏀 Sport-Specific Entity Resolution Tools
 
-### Baseball Tools
+### Baseball Entity Resolution
 
-#### resolve_team
-Resolve team name to official team information.
+#### resolve_baseball_team
+Resolve team name to canonical MLB team information with confidence scoring.
 ```javascript
 {
-  "name": "resolve_team",
-  "input": { "name": "Yankees" }
+  "name": "resolve_baseball_team",
+  "input": { 
+    "name": "Yankees",
+    "fuzzy": true,
+    "includeStats": false
+  }
 }
-// Returns: { "id": 147, "name": "New York Yankees", "abbreviation": "NYY" }
+// Returns: {
+//   "resolved": true,
+//   "team": {
+//     "id": 147, 
+//     "name": "New York Yankees", 
+//     "abbreviation": "NYY",
+//     "match_type": "exact",
+//     "confidence": 1.0,
+//     "aliases": ["yankees", "ny yankees", "bronx bombers"]
+//   }
+// }
 ```
 
-#### get_team_roster
-Get current team roster with player details.
+#### resolve_baseball_player
+Resolve player name to canonical MLB player information.
 ```javascript
 {
-  "name": "get_team_roster", 
-  "input": { "team_id": 147 }
+  "name": "resolve_baseball_player",
+  "input": { 
+    "name": "Judge",
+    "team": "Yankees",
+    "fuzzy": true,
+    "includeStats": false
+  }
 }
+// Returns: {
+//   "resolved": true,
+//   "player": {
+//     "id": 592450,
+//     "name": "Aaron Judge",
+//     "team_id": 147,
+//     "match_type": "alias",
+//     "confidence": 0.9,
+//     "aliases": ["judge", "aaron judge", "aj"]
+//   }
+// }
 ```
 
-#### get_player_stats
-Get detailed player statistics.
+#### search_baseball_teams
+Search for MLB teams with filters.
 ```javascript
 {
-  "name": "get_player_stats",
-  "input": { "player_name": "Aaron Judge" }
+  "name": "search_baseball_teams",
+  "input": {
+    "query": "new york",
+    "division": "AL East",
+    "limit": 10
+  }
 }
 ```
 
-#### get_team_schedule
-Get team schedule and upcoming games.
+#### search_baseball_players
+Search for MLB players with filters.
 ```javascript
 {
-  "name": "get_team_schedule",
-  "input": { "team_id": 147, "days": 7 }
+  "name": "search_baseball_players",
+  "input": {
+    "query": "aaron",
+    "team": "Yankees",
+    "position": "OF",
+    "active": true,
+    "limit": 10
+  }
 }
 ```
 
-### Hockey Tools
 
-#### resolve_team
-Resolve NHL team name to team information.
+### Hockey Entity Resolution
+
+#### resolve_hockey_team
+Resolve NHL team name to canonical team information.
 ```javascript
 {
-  "name": "resolve_team",
-  "input": { "name": "Bruins" }
+  "name": "resolve_hockey_team",
+  "input": { 
+    "name": "Bruins",
+    "fuzzy": true,
+    "includeStats": false
+  }
 }
-// Returns: { "id": 6, "name": "Boston Bruins", "abbreviation": "BOS" }
+// Returns: {
+//   "resolved": true,
+//   "team": {
+//     "id": 6,
+//     "name": "Boston Bruins",
+//     "abbreviation": "BOS",
+//     "match_type": "alias",
+//     "confidence": 0.9,
+//     "aliases": ["bruins", "boston bruins", "bs"]
+//   }
+// }
 ```
 
-#### get_team_roster
-Get current NHL team roster.
+#### resolve_hockey_player
+Resolve NHL player name to canonical player information.
 ```javascript
 {
-  "name": "get_team_roster",
-  "input": { "team_id": 6 }
+  "name": "resolve_hockey_player",
+  "input": { 
+    "name": "McDavid",
+    "team": "Oilers",
+    "fuzzy": true,
+    "includeStats": false
+  }
 }
 ```
 
-### Fantasy Tools
+#### search_hockey_teams
+Search for NHL teams with filters.
+```javascript
+{
+  "name": "search_hockey_teams",
+  "input": {
+    "query": "boston",
+    "division": "Atlantic",
+    "conference": "Eastern"
+  }
+}
+```
 
-Fantasy tools require `league_id` parameter and authenticated ESPN/Yahoo credentials.
+#### search_hockey_players
+Search for NHL players with filters.
+```javascript
+{
+  "name": "search_hockey_players",
+  "input": {
+    "query": "connor",
+    "team": "Oilers",
+    "position": "C",
+    "active": true
+  }
+}
+```
+
+### Football Entity Resolution (Placeholder)
+
+#### resolve_football_team
+Resolve NFL team name to canonical team information.
+```javascript
+{
+  "name": "resolve_football_team",
+  "input": { 
+    "name": "Patriots",
+    "fuzzy": true,
+    "includeStats": false
+  }
+}
+// Returns placeholder NFL team data
+```
+
+#### resolve_football_player
+Resolve NFL player name to canonical player information.
+```javascript
+{
+  "name": "resolve_football_player",
+  "input": { 
+    "name": "Brady",
+    "team": "Patriots",
+    "fuzzy": true
+  }
+}
+// Returns placeholder NFL player data
+```
+
+### Basketball Entity Resolution (Placeholder)
+
+#### resolve_basketball_team
+Resolve NBA team name to canonical team information.
+```javascript
+{
+  "name": "resolve_basketball_team",
+  "input": { 
+    "name": "Lakers",
+    "fuzzy": true,
+    "includeStats": false
+  }
+}
+// Returns placeholder NBA team data
+```
+
+#### resolve_basketball_player
+Resolve NBA player name to canonical player information.
+```javascript
+{
+  "name": "resolve_basketball_player",
+  "input": { 
+    "name": "LeBron",
+    "team": "Lakers",
+    "fuzzy": true
+  }
+}
+// Returns placeholder NBA player data
+```
+
+### Legacy Fantasy Tools
+
+Legacy fantasy tools require `league_id` parameter and authenticated ESPN/Yahoo credentials.
 
 #### get_league_info
 Get fantasy league information and settings.
@@ -339,6 +486,21 @@ Get tool usage breakdown by sport.
 }
 ```
 
+### Entity Resolution Error Response
+```javascript
+{
+  "resolved": false,
+  "query": "unknown player",
+  "suggestions": [
+    {
+      "name": "Aaron Judge",
+      "team_name": "New York Yankees",
+      "relevance": 1
+    }
+  ]
+}
+```
+
 ### Error Types
 - `authentication_error`: Invalid or expired tokens
 - `authorization_error`: Insufficient permissions
@@ -346,6 +508,7 @@ Get tool usage breakdown by sport.
 - `rate_limit_error`: Too many requests
 - `service_error`: Internal service issues
 - `external_api_error`: Third-party API failures
+- `entity_resolution_error`: Entity not found or ambiguous
 
 ### HTTP Status Codes
 - `200` Success
@@ -359,11 +522,11 @@ Get tool usage breakdown by sport.
 
 ## 🚀 Rate Limits
 
-| Tier | Requests/Hour | Concurrent | Tools/Request |
-|------|---------------|------------|---------------|
-| **Free** | 100 | 2 | 3 |
-| **Pro** | 1,000 | 5 | 3 |
-| **Elite** | 10,000 | 10 | 3 |
+| Tier | Requests/Hour | Concurrent | Tools/Request | Entity Resolvers |
+|------|---------------|------------|---------------|------------------|
+| **Free** | 100 | 2 | 3 | Baseball + Hockey |
+| **Pro** | 1,000 | 5 | 3 | All 4 Sports |
+| **Elite** | 10,000 | 10 | 3 | All 4 Sports + Priority |
 
 ## 📈 Performance Optimization
 

@@ -8,6 +8,9 @@
 const https = require('https');
 const { createMockEnv, TEST_CONFIG, TEST_DATA, helpers } = require('./test-utils');
 
+// Import default model configuration
+const DEFAULT_MODEL = 'gpt-4.1-mini';
+
 class E2ETestSuite {
   constructor() {
     this.results = [];
@@ -166,7 +169,7 @@ class E2ETestSuite {
       // Test if our worker supports MCP-style requests
       const response = await helpers.makeRequest('/responses', {
         body: JSON.stringify({
-          model: 'gpt-4.1',
+          model: DEFAULT_MODEL,
           input: 'Test MCP integration with sports data',
           tools: [
             {

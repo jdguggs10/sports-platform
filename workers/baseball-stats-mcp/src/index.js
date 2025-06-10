@@ -98,9 +98,17 @@ export default {
           status: 'healthy',
           timestamp: new Date().toISOString(),
           endpoints: ['player', 'team', 'game', 'standings', 'schedule', 'advanced'],
-          version: '3.0.0',
-          integration: 'mlbstats-mcp via Service Binding'
+          version: '3.1.0',
+          integration: 'MLB Stats API Direct',
+          openai_tools_endpoint: '/openai-tools.json'
         }), {
+          headers: { "Content-Type": "application/json" }
+        });
+      }
+      
+      // OpenAI Tools Schema Endpoint
+      if (url.pathname === '/openai-tools.json') {
+        return new Response(JSON.stringify(getOpenAIToolSchemas()), {
           headers: { "Content-Type": "application/json" }
         });
       }
@@ -331,4 +339,180 @@ function resolveTeam(teamName) {
 function resolvePlayer(playerName) {
   const normalizedName = playerName.toLowerCase().trim();
   return MLB_PLAYERS[normalizedName] || null;
+}
+
+/**
+ * Get OpenAI-compatible tool schemas for baseball
+ */
+function getOpenAIToolSchemas() {
+  return [
+    {
+      type: "function",
+      function: {
+        name: "resolve_team",
+        description: "Resolve baseball team name to team ID and information",
+        parameters: {
+          type: "object",
+          properties: {
+            name: {
+              type: "string", 
+              description: "Team name (e.g., 'Yankees', 'Red Sox', 'Dodgers')"
+            }
+          },
+          required: ["name"]
+        }
+      }
+    },
+    {
+      type: "function",
+      function: {
+        name: "resolve_player", 
+        description: "Resolve baseball player name to player ID and information",
+        parameters: {
+          type: "object",
+          properties: {
+            name: {
+              type: "string",
+              description: "Player name (e.g., 'Aaron Judge', 'Shohei Ohtani')"
+            }
+          },
+          required: ["name"]
+        }
+      }
+    },
+    {
+      type: "function",
+      function: {
+        name: "get_team_info",
+        description: "Get baseball team information including stats and roster details",
+        parameters: {
+          type: "object", 
+          properties: {
+            teamId: {
+              type: "string",
+              description: "MLB team ID (resolved automatically if name provided)"
+            },
+            name: {
+              type: "string", 
+              description: "Team name for auto-resolution"
+            },
+            season: {
+              type: "string",
+              description: "Season year (defaults to current)"
+            }
+          }
+        }
+      }
+    },
+    {
+      type: "function",
+      function: {
+        name: "get_player_stats",
+        description: "Get baseball player statistics",
+        parameters: {
+          type: "object",
+          properties: {
+            playerId: {
+              type: "string",
+              description: "MLB player ID (resolved automatically if name provided)"
+            },
+            name: {
+              type: "string",
+              description: "Player name for auto-resolution"
+            },
+            season: {
+              type: "string", 
+              description: "Season year (defaults to current)"
+            },
+            group: {
+              type: "string",
+              description: "Stats group: hitting, pitching, fielding",
+              enum: ["hitting", "pitching", "fielding"]
+            }
+          }
+        }
+      }
+    },
+    {
+      type: "function",
+      function: {
+        name: "get_team_roster",
+        description: "Get baseball team roster",
+        parameters: {
+          type: "object",
+          properties: {
+            teamId: {
+              type: "string",
+              description: "MLB team ID (resolved automatically if name provided)"
+            },
+            name: {
+              type: "string",
+              description: "Team name for auto-resolution"  
+            },
+            season: {
+              type: "string",
+              description: "Season year (defaults to current)"
+            }
+          }
+        }
+      }
+    },
+    {
+      type: "function",
+      function: {
+        name: "get_schedule",
+        description: "Get baseball game schedule",
+        parameters: {
+          type: "object",
+          properties: {
+            date: {
+              type: "string",
+              description: "Date in YYYY-MM-DD format (defaults to today)"
+            },
+            teamId: {
+              type: "string", 
+              description: "Optional team ID filter"
+            }
+          }
+        }
+      }
+    },
+    {
+      type: "function",
+      function: {
+        name: "get_standings",
+        description: "Get baseball standings",
+        parameters: {
+          type: "object",
+          properties: {
+            season: {
+              type: "string",
+              description: "Season year (defaults to current)"
+            },
+            divisionId: {
+              type: "string",
+              description: "Optional division ID filter"
+            }
+          }
+        }
+      }
+    },
+    {
+      type: "function",
+      function: {
+        name: "get_live_game",
+        description: "Get live baseball game data and play-by-play",
+        parameters: {
+          type: "object",
+          properties: {
+            gameId: {
+              type: "string",
+              description: "MLB game ID"
+            }
+          },
+          required: ["gameId"]
+        }
+      }
+    }
+  ];
 }
